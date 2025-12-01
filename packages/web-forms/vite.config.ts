@@ -100,7 +100,10 @@ export default defineConfig(({ mode }) => {
 
 		lib = {
 			formats: ['es'],
-			entry: resolve(__dirname, 'src/index.ts'),
+			entry: {
+				index: resolve(__dirname, 'src/index.ts'),
+				webcomponent: resolve(__dirname, 'src/index-wc.ts'),
+			},
 			name: 'OdkWebForms',
 			fileName: 'index',
 		};
@@ -151,6 +154,9 @@ export default defineConfig(({ mode }) => {
 				external,
 				output: {
 					globals,
+					entryFileNames: () => {
+						return `[name].js`;
+					},
 				},
 			},
 		},

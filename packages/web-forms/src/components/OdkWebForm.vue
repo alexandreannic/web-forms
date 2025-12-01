@@ -121,36 +121,33 @@ type EventKey = `on${Capitalize<OdkWebFormEmitsEventType>}`;
  * @see {@link EventKey}
  */
 const isEmitSubscribed = (eventKey: EventKey): boolean => {
-	return eventKey in (componentInstance?.vnode.props ?? {});
+	return true;
+	// return eventKey in (componentInstance?.vnode.props ?? {});
 };
 
 const emitSubmit = async (currentState: FormStateSuccessResult) => {
-	if (isEmitSubscribed('onSubmit')) {
-		const payload = await currentState.root.prepareInstancePayload({
-			payloadType: 'monolithic',
-		});
-		const callback = hostSubmissionResultCallbackFactory(currentState);
+	const payload = await currentState.root.prepareInstancePayload({
+		payloadType: 'monolithic',
+	});
+	const callback = hostSubmissionResultCallbackFactory(currentState);
 
-		emit('submit', payload, callback);
-	}
+	emit('submit', payload, callback);
 };
 
 const emitSubmitChunked = async (currentState: FormStateSuccessResult) => {
-	if (isEmitSubscribed('onSubmitChunked')) {
-		const maxSize = props.submissionMaxSize;
+	const maxSize = props.submissionMaxSize;
 
-		if (maxSize == null) {
-			throw new Error('The `submissionMaxSize` prop is required for chunked submissions');
-		}
-
-		const payload = await currentState.root.prepareInstancePayload({
-			payloadType: 'chunked',
-			maxSize,
-		});
-		const callback = hostSubmissionResultCallbackFactory(currentState);
-
-		emit('submitChunked', payload, callback);
+	if (maxSize == null) {
+		throw new Error('The `submissionMaxSize` prop is required for chunked submissions');
 	}
+
+	const payload = await currentState.root.prepareInstancePayload({
+		payloadType: 'chunked',
+		maxSize,
+	});
+	const callback = hostSubmissionResultCallbackFactory(currentState);
+
+	emit('submitChunked', payload, callback);
 };
 
 const emit = defineEmits<OdkWebFormEmits>();
@@ -235,10 +232,7 @@ watchEffect(() => {
 	/>
 
 	<template v-if="state.status === 'FORM_STATE_FAILURE'">
-		<FormLoadFailureDialog
-			severity="error"
-			:error="state.error"
-		/>
+		<FormLoadFailureDialog severity="error" :error="state.error" />
 	</template>
 
 	<div
@@ -249,7 +243,13 @@ watchEffect(() => {
 		<div class="form-wrapper">
 			<div v-if="showValidationError" class="error-banner-placeholder" />
 			<!-- Closable error message to clear the view and avoid overlap with other elements -->
-			<Message v-if="showValidationError" severity="error" class="form-error-message" :closable="true" @close="floatingErrorActive = false">
+			<Message
+				v-if="showValidationError"
+				severity="error"
+				class="form-error-message"
+				:closable="true"
+				@close="floatingErrorActive = false"
+			>
 				<IconSVG name="mdiAlertCircleOutline" variant="error" />
 				<span>{{ validationErrorMessage }}</span>
 			</Message>
@@ -274,7 +274,7 @@ watchEffect(() => {
 		<div class="powered-by-wrapper">
 			<a class="anchor" href="https://getodk.org" target="_blank">
 				<span class="caption">Powered by</span>
-				<img class="logo" src="../assets/images/odk-logo.svg" alt="ODK">
+				<img class="logo" src="../assets/images/odk-logo.svg" alt="ODK" />
 			</a>
 			<div class="version">
 				{{ webFormsVersion }}
@@ -466,7 +466,8 @@ watchEffect(() => {
 
 <style lang="scss">
 @use 'primeflex/core/_variables.scss' as pf;
-
+@import '../assets/styles/style.scss';
+@import 'primeflex/primeflex.css';
 :root {
 	// This variable is used to assert the breakpoint from PrimeFlex are loaded
 	// {@link https://github.com/getodk/web-forms/blob/main/packages/web-forms/e2e/test-cases/build/style.test.ts}
