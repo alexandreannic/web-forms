@@ -22,7 +22,7 @@ dist/
 dist-demo/
 examples/**/dist
 packages/**/dist
-!packages/web-forms/dist/webcomponent.js
+!packages/web-forms/dist/
 
 # Generated documentation
 packages/*/api-docs
