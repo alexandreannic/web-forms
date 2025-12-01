@@ -1,5 +1,5 @@
 {
-  "name": "root",
+  "name": "@getodk/web-forms-wc",
   "private": true,
   "repository": {
     "type": "git",
@@ -7,6 +7,11 @@
   },
   "type": "module",
   "version": "0.1.0",
+  "exports": {
+    ".": "./packages/web-forms/dist/webcomponent.js"
+  },
+  "main": "./packages/web-forms/dist/webcomponent.js",
+  "module": "./packages/web-forms/dist/webcomponent.js",
   "engines": {
     "node": "^20.19.3 || ^22.12.0 || ^24.13.0",
     "npm": "11"
