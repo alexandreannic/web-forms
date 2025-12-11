@@ -31,6 +31,7 @@ import Button from 'primevue/button';
 import Card from 'primevue/card';
 import Message from 'primevue/message';
 import { computed, getCurrentInstance, provide, readonly, ref, shallowRef, watchEffect } from 'vue';
+import { watch } from 'vue';
 
 const webFormsVersion = __WEB_FORMS_VERSION__;
 
@@ -166,7 +167,10 @@ const showValidationError = ref(false);
 
 const init = async () => {
 	state.value = await loadFormState(props.formXml, {
-		form: formOptions,
+		form: {
+			fetchFormAttachment: props.fetchFormAttachment,
+			missingResourceBehavior: props.missingResourceBehavior,
+		},
 		editInstance: props.editInstance ?? null,
 		preloadProperties: props.preloadProperties,
 		trackDevice: props.trackDevice,
@@ -177,7 +181,7 @@ const init = async () => {
 	}
 };
 
-void init();
+watch([() => props.formXml, () => props.editInstance], init, { immediate: true });
 
 const handleSubmit = (currentState: FormStateSuccessResult) => {
 	const { root } = currentState;
