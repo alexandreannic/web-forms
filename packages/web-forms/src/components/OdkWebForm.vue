@@ -219,14 +219,19 @@ const resetComponentState = () => {
 
 const init = async () => {
 	state.value = await loadFormState(props.formXml, {
-		form: formOptions,
+		form: {
+			fetchFormAttachment: props.fetchFormAttachment,
+			missingResourceBehavior: props.missingResourceBehavior,
+			geolocationProvider: { getLocation: () => getLocation() },
+			attachmentMaxSize: props.attachmentMaxSize,
+		},
 		editInstance: props.editInstance ?? null,
 		preloadProperties: props.preloadProperties,
 		trackDevice: props.trackDevice,
 	});
 };
 
-void init();
+watch([() => props.formXml, () => props.editInstance], init, { immediate: true });
 
 const handleSubmit = (currentState: FormStateSuccessResult) => {
 	const { root } = currentState;
