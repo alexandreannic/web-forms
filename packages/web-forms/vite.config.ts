@@ -91,8 +91,8 @@ export default defineConfig(({ mode }) => {
 		globals = {};
 		extraPlugins.push(copyConfigFile);
 	} else {
-		external = ['vue'];
-		globals = { vue: 'Vue' };
+		// external = ['vue'];
+		// globals = { vue: 'Vue' };
 
 		if (isDev) {
 			extraPlugins.push(copyConfigFile);
