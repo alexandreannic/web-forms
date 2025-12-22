@@ -1,6 +1,5 @@
-import { P as e, o } from "./OdkWebForm-UouUUrWE.js";
-import { O as p, a as h } from "./OdkWebForm-UouUUrWE.js";
-import "vue";
+import { P as e, o } from "./OdkWebForm-BSrFld-h.js";
+import { O as m, a as p } from "./OdkWebForm-BSrFld-h.js";
 const i = `*,
 ::before,
 ::after {
@@ -110,14 +109,14 @@ summary {
 	outline: 1px solid #3e9fcc;
 	outline-offset: 1px;
 }
-`, s = {
+`, a = {
   install(t) {
     const n = document.createElement("style");
     n.textContent = i, document.head.prepend(n), t.use(e, { theme: { preset: o, options: { darkModeSelector: !1 } } });
   }
 };
 export {
-  p as OdkWebForm,
-  h as POST_SUBMIT__NEW_INSTANCE,
-  s as webFormsPlugin
+  m as OdkWebForm,
+  p as POST_SUBMIT__NEW_INSTANCE,
+  a as webFormsPlugin
 };
