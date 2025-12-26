@@ -4,18 +4,19 @@ import type {
 	FetchResourceResponse,
 	FormResource,
 	MissingResourceBehavior,
+	PreloadProperties,
 	ResolvableFormInstance,
 	ResolvableFormInstanceInput,
 } from '@getodk/xforms-engine';
 import { loadForm } from '@getodk/xforms-engine';
 import { FormInitializationError } from '../error/FormInitializationError.ts';
+import { getFormInstanceConfig } from './engine-config.ts';
 import type {
 	FormState,
 	FormStateFailureResult,
 	FormStateSuccessResult,
 	InstantiableForm,
 } from './form-state.ts';
-import { ENGINE_FORM_INSTANCE_CONFIG } from './engine-config.ts';
 
 export interface FormOptions {
 	readonly fetchFormAttachment: FetchFormAttachment;
@@ -66,6 +67,8 @@ const resolvableFormInstanceInput = (options: EditInstanceOptions): ResolvableFo
 interface LoadFormStateOptions {
 	readonly form: FormOptions;
 	readonly editInstance?: EditInstanceOptions | null;
+	readonly trackDevice?: boolean;
+	readonly preloadProperties?: PreloadProperties;
 }
 
 const failure = (error: FormInitializationError): FormStateFailureResult => {
@@ -98,9 +101,11 @@ export const loadFormState = async (
 		return failure(FormInitializationError.fromError(form.error));
 	}
 
+	const config = getFormInstanceConfig(options);
+
 	if (options.editInstance == null) {
 		try {
-			const instance = form.createInstance(ENGINE_FORM_INSTANCE_CONFIG);
+			const instance = form.createInstance(config);
 
 			return success(form, instance);
 		} catch (cause) {
@@ -110,7 +115,7 @@ export const loadFormState = async (
 
 	try {
 		const instanceOptions = resolvableFormInstanceInput(options.editInstance);
-		const instance = await form.editInstance(instanceOptions, ENGINE_FORM_INSTANCE_CONFIG);
+		const instance = await form.editInstance(instanceOptions, config);
 
 		return success(form, instance);
 	} catch (cause) {

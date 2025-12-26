@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { POST_SUBMIT__NEW_INSTANCE } from '@/lib/constants/control-flow';
+import type { HostSubmissionResultCallback } from '@/lib/submission/host-submission-result-callback';
 import { xformFixturesByCategory, XFormResource } from '@getodk/common/fixtures/xforms.ts';
 import type {
 	ChunkedInstancePayload,
 	FetchFormAttachment,
 	MissingResourceBehavior,
 	MonolithicInstancePayload,
+	PreloadProperties,
 } from '@getodk/xforms-engine';
 import { constants as ENGINE_CONSTANTS } from '@getodk/xforms-engine';
 import { ref } from 'vue';
@@ -59,7 +62,10 @@ xformResource
 		alert('Failed to load the Form XML');
 	});
 
-const handleSubmit = async (payload: MonolithicInstancePayload) => {
+const handleSubmit = async (
+	payload: MonolithicInstancePayload,
+	clearFormCallback: HostSubmissionResultCallback
+) => {
 	// eslint-disable-next-line no-console
 	console.log('submission payload:', payload);
 	for (const value of payload.data[0].values()) {
@@ -67,11 +73,18 @@ const handleSubmit = async (payload: MonolithicInstancePayload) => {
 		console.log(await value.text());
 	}
 	alert('Submit button was pressed');
+	clearFormCallback({ next: POST_SUBMIT__NEW_INSTANCE });
 };
 
 const handleSubmitChunked = (payload: ChunkedInstancePayload) => {
 	// eslint-disable-next-line no-console
 	console.log('CHUNKED submission payload:', payload);
+};
+
+const preloadProperties: PreloadProperties = {
+	email: 'fake@fake.fake',
+	phoneNumber: '+1235556789',
+	username: 'nousername',
 };
 </script>
 <template>
@@ -81,6 +94,8 @@ const handleSubmitChunked = (payload: ChunkedInstancePayload) => {
 			:fetch-form-attachment="formPreviewState.fetchFormAttachment"
 			:missing-resource-behavior="formPreviewState.missingResourceBehavior"
 			:submission-max-size="Infinity"
+			:preload-properties="preloadProperties"
+			:track-device="true"
 			@submit="handleSubmit"
 			@submit-chunked="handleSubmitChunked"
 		/>

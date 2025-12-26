@@ -1,5 +1,5 @@
 {
-  "name": "root",
+  "name": "@getodk/web-forms-wc",
   "private": true,
   "repository": {
     "type": "git",
@@ -7,6 +7,11 @@
   },
   "type": "module",
   "version": "0.1.0",
+  "exports": {
+    ".": "./packages/web-forms/dist/webcomponent.js"
+  },
+  "main": "./packages/web-forms/dist/webcomponent.js",
+  "module": "./packages/web-forms/dist/webcomponent.js",
   "engines": {
     "node": "^20.19.3 || ^22.12.0 || ^24.11.0",
     "yarn": "4.11.0"
@@ -20,7 +25,6 @@
     "packages/*"
   ],
   "scripts": {
-    "preinstall": "npx only-allow yarn",
     "test": "TZ=America/Phoenix npx turbo run test",
     "build": "turbo run build",
     "types": "turbo run types",
@@ -41,7 +45,6 @@
     "@tsconfig/node20": "^20.1.8",
     "@types/eslint": "^9.6.1",
     "@types/eslint-config-prettier": "^6.11.3",
-    "@types/eslint__js": "^9.14.0",
     "@types/geojson": "^7946.0.16",
     "@types/jsdom": "^27.0.0",
     "@types/node": "^24.10.1",

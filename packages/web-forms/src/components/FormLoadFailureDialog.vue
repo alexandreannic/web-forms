@@ -38,14 +38,8 @@ const detail = computed((): FormLoadErrorDetail | null => {
 </script>
 
 <template>
-	<Dialog
-		class="form-load-failure-dialog"
-		:visible="detail != null"
-		:header="FORM_LOAD_ERROR_TEXT.DIALOG_TITLE"
-		:closable="false"
-		:draggable="false"
-		:keep-in-viewport="true"
-	>
+	<div v-if="detail != null" class="form-load-failure-dialog">
+		<div>{{ FORM_LOAD_ERROR_TEXT.DIALOG_TITLE }}</div>
 		<div class="content">
 			<Message severity="error" class="message" :closable="false" :unstyled="true">
 				{{ error.message }}
@@ -59,7 +53,7 @@ const detail = computed((): FormLoadErrorDetail | null => {
 				<pre v-if="detail.stack != null">{{ detail.stack }}</pre>
 			</details>
 		</div>
-	</Dialog>
+	</div>
 </template>
 
 <style lang="scss" scoped>
