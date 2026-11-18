@@ -4,7 +4,11 @@ import type { AttributeContext } from '../../instance/internal-api/AttributeCont
 import type { InstanceValueContext } from '../../instance/internal-api/InstanceValueContext.ts';
 import { ActionComputationExpression } from '../../parse/expression/ActionComputationExpression.ts';
 import type { BindComputationExpression } from '../../parse/expression/BindComputationExpression.ts';
-import { ActionDefinition, SET_ACTION_EVENTS } from '../../parse/model/ActionDefinition.ts';
+import { ActionDefinition } from '../../parse/model/ActionDefinition.ts';
+import type { AnyBindPreloadDefinition } from '../../parse/model/BindPreloadDefinition.ts';
+import { XFORM_EVENT } from '../../parse/model/Event.ts';
+import { SET_GEOPOINT_LOCAL_NAME } from '../../parse/XFormDOM.ts';
+import { sharedValueCodecs } from '../codecs/getSharedValueCodec.ts';
 import { createComputedExpression } from './createComputedExpression.ts';
 import type { SimpleAtomicState, SimpleAtomicStateSetter } from './types.ts';
 
@@ -13,7 +17,7 @@ const REPEAT_INDEX_REGEX = /([^[]*)(\[[0-9]+\])/g;
 type ValueContext = AttributeContext | InstanceValueContext;
 
 const isInstanceFirstLoad = (context: ValueContext) => {
-	return context.rootDocument.initializationMode === 'create';
+	return context.rootDocument.initializationMode === 'create' && !isAddingRepeatChild(context);
 };
 
 const isAddingRepeatChild = (context: ValueContext) => {
@@ -22,11 +26,9 @@ const isAddingRepeatChild = (context: ValueContext) => {
 
 /**
  * Special case, does not correspond to any event.
- *
- * @see {@link shouldPreloadUID}
  */
 const isEditInitialLoad = (context: ValueContext) => {
-	return context.rootDocument.initializationMode === 'edit';
+	return context.rootDocument.initializationMode === 'edit' && !isAddingRepeatChild(context);
 };
 
 const getInitialValue = (context: ValueContext): string => {
@@ -94,39 +96,45 @@ const guardDownstreamReadonlyWrites = (
 	return [getValue, setValue];
 };
 
-/**
- * Per {@link https://getodk.github.io/xforms-spec/#preload-attributes:~:text=concatenation%20of%20%E2%80%98uuid%3A%E2%80%99%20and%20uuid()}
- */
-const PRELOAD_UID_EXPRESSION = 'concat("uuid:", uuid())';
-
-/**
- * @todo It feels increasingly awkward to keep piling up preload stuff here, but it won't stay that way for long. In the meantime, this seems like the best way to express the cases where `preload="uid"` should be effective, i.e.:
- *
- * - When an instance is first loaded ({@link isInstanceFirstLoad})
- * - When an instance is initially loaded for editing ({@link isEditInitialLoad})
- */
-const shouldPreloadUID = (context: ValueContext) => {
-	return isInstanceFirstLoad(context) || isEditInitialLoad(context);
+const setValueIfPreloadDefined = (
+	context: ValueContext,
+	setValue: SimpleAtomicStateSetter<string>,
+	preload: AnyBindPreloadDefinition
+) => {
+	const value = preload.getValue(context);
+	if (value) {
+		setValue(value);
+	}
 };
 
-/**
- * @todo This is a temporary one-off, until we support the full range of
- * {@link https://getodk.github.io/xforms-spec/#preload-attributes | preloads}.
- */
-const setPreloadUIDValue = (context: ValueContext, valueState: RelevantValueState): void => {
-	const { preload } = context.definition.bind;
+const postloadValue = (
+	context: ValueContext,
+	setValue: SimpleAtomicStateSetter<string>,
+	preload: AnyBindPreloadDefinition
+) => {
+	const ref = context.contextReference();
+	context.definition.model.registerXformsRevalidateListener(ref, () => {
+		setValueIfPreloadDefined(context, setValue, preload);
+	});
+};
 
-	if (preload?.type !== 'uid' || !shouldPreloadUID(context)) {
+const preloadValue = (context: ValueContext, setValue: SimpleAtomicStateSetter<string>): void => {
+	const { preload } = context.definition.bind;
+	if (!preload) {
 		return;
 	}
 
-	const preloadUIDValue = context.evaluator.evaluateString(PRELOAD_UID_EXPRESSION, {
-		contextNode: context.contextNode,
-	});
-
-	const [, setValue] = valueState;
-
-	setValue(preloadUIDValue);
+	if (preload.event === XFORM_EVENT.xformsRevalidate) {
+		postloadValue(context, setValue, preload);
+	} else if (preload.event === XFORM_EVENT.odkInstanceFirstLoad) {
+		if (isInstanceFirstLoad(context)) {
+			setValueIfPreloadDefined(context, setValue, preload);
+		}
+	} else if (preload.event === XFORM_EVENT.odkInstanceLoad) {
+		if (isInstanceFirstLoad(context) || isEditInitialLoad(context)) {
+			setValueIfPreloadDefined(context, setValue, preload);
+		}
+	}
 };
 
 const referencesCurrentNode = (context: ValueContext, ref: string): boolean => {
@@ -168,7 +176,7 @@ const bindToRepeatInstance = (
  * computations to the provided value setter, on initialization and any
  * subsequent reactive update.
  *
- * @see {@link setPreloadUIDValue} for important details about spec ordering of
+ * @see {@link preloadValue} for important details about spec ordering of
  * events and computations.
  */
 const createCalculation = (
@@ -186,6 +194,42 @@ const createCalculation = (
 	});
 };
 
+/**
+ * Runs the computation without maintaining a reactive listener, so
+ * actions that should run only at a specific time are not triggered
+ * when referenced elements are updated.
+ */
+const createActionCalculation = (
+	context: ValueContext,
+	setRelevantValue: SimpleAtomicStateSetter<string>,
+	computation: ActionComputationExpression<'string'>
+): void => {
+	createComputed(() => {
+		if (context.isAttached()) {
+			// use untrack so the expression evaluation isn't reactive
+			const relevant = untrack(() => context.isRelevant());
+			if (!relevant) {
+				return;
+			}
+			const calculated = untrack(() => {
+				return context.evaluator.evaluateString(computation.expression, context);
+			});
+			const value = context.decodeInstanceValue(calculated);
+			setRelevantValue(value);
+		}
+	});
+};
+
+const resolveAndSetValueChanged = (
+	context: ValueContext,
+	setRelevantValue: SimpleAtomicStateSetter<string>,
+	expression: string
+): void => {
+	const calc = context.evaluator.evaluateString(expression, context);
+	const value = context.decodeInstanceValue(calc);
+	setRelevantValue(value);
+};
+
 const createValueChangedCalculation = (
 	context: ValueContext,
 	setRelevantValue: SimpleAtomicStateSetter<string>,
@@ -193,21 +237,27 @@ const createValueChangedCalculation = (
 ): void => {
 	const { source, ref } = bindToRepeatInstance(context, action);
 	if (!source) {
-		// no element to listen to
+		// No element to listen to
 		return;
 	}
-	let previous = '';
 	const sourceElementExpression = new ActionComputationExpression('string', source);
-	const calculateValueSource = createComputedExpression(context, sourceElementExpression); // registers listener
+	const calculateValueSource = createComputedExpression(context, sourceElementExpression); // Registers listener
+	let previous: string;
 	createComputed(() => {
-		if (context.isAttached() && context.isRelevant()) {
+		if (context.isAttached()) {
 			const valueSource = calculateValueSource();
-			if (previous !== valueSource) {
-				// only update if value has changed
-				if (referencesCurrentNode(context, ref)) {
-					const calc = context.evaluator.evaluateString(action.computation.expression, context);
-					const value = context.decodeInstanceValue(calc);
-					setRelevantValue(value);
+			if (
+				previous !== undefined &&
+				previous !== valueSource &&
+				referencesCurrentNode(context, ref)
+			) {
+				// Only update if value has changed
+				if (action.element.nodeName === SET_GEOPOINT_LOCAL_NAME) {
+					getGeopointValue(context, (point) => {
+						setRelevantValue(point);
+					});
+				} else {
+					resolveAndSetValueChanged(context, setRelevantValue, action.computation.expression);
 				}
 			}
 			previous = valueSource;
@@ -215,27 +265,48 @@ const createValueChangedCalculation = (
 	});
 };
 
-const registerAction = (
+const getGeopointValue = (context: ValueContext, callback: (value: string) => void) => {
+	// eslint-disable-next-line @typescript-eslint/no-floating-promises -- we don't want to block
+	context.rootDocument.getBackgroundGeopoint()?.then((point) => {
+		// Allow the codec to manage all geolocation validation.
+		// It decodes and encodes the value, and setValue expects a string.
+		callback(sharedValueCodecs.geopoint.encodeValue(point));
+	});
+};
+
+const performActionComputation = (
 	context: ValueContext,
 	setValue: SimpleAtomicStateSetter<string>,
 	action: ActionDefinition
 ) => {
-	if (action.events.includes(SET_ACTION_EVENTS.odkInstanceFirstLoad)) {
+	if (action.element.nodeName === SET_GEOPOINT_LOCAL_NAME) {
+		getGeopointValue(context, (point) => setValue(point));
+		return;
+	}
+	createActionCalculation(context, setValue, action.computation);
+};
+
+const dispatchAction = (
+	context: ValueContext,
+	setValue: SimpleAtomicStateSetter<string>,
+	action: ActionDefinition
+) => {
+	if (action.events.includes(XFORM_EVENT.odkInstanceFirstLoad)) {
 		if (isInstanceFirstLoad(context)) {
-			createCalculation(context, setValue, action.computation);
+			performActionComputation(context, setValue, action);
 		}
 	}
-	if (action.events.includes(SET_ACTION_EVENTS.odkInstanceLoad)) {
+	if (action.events.includes(XFORM_EVENT.odkInstanceLoad)) {
 		if (!isAddingRepeatChild(context)) {
-			createCalculation(context, setValue, action.computation);
+			performActionComputation(context, setValue, action);
 		}
 	}
-	if (action.events.includes(SET_ACTION_EVENTS.odkNewRepeat)) {
+	if (action.events.includes(XFORM_EVENT.odkNewRepeat)) {
 		if (isAddingRepeatChild(context)) {
-			createCalculation(context, setValue, action.computation);
+			performActionComputation(context, setValue, action);
 		}
 	}
-	if (action.events.includes(SET_ACTION_EVENTS.xformsValueChanged)) {
+	if (action.events.includes(XFORM_EVENT.xformsValueChanged)) {
 		createValueChangedCalculation(context, setValue, action);
 	}
 };
@@ -259,22 +330,17 @@ export const createInstanceValueState = (context: ValueContext): InstanceValueSt
 		const baseValueState = createSignal(initialValue);
 		const relevantValueState = createRelevantValueState(context, baseValueState);
 
-		/**
-		 * @see {@link setPreloadUIDValue} for important details about spec ordering of events and computations.
-		 */
-		setPreloadUIDValue(context, relevantValueState);
-
 		const [, setValue] = relevantValueState;
+
+		preloadValue(context, setValue);
 
 		const { calculate } = context.definition.bind;
 		if (calculate != null) {
 			createCalculation(context, setValue, calculate);
 		}
 
-		const action = context.definition.model.actions.get(context.contextReference());
-		if (action) {
-			registerAction(context, setValue, action);
-		}
+		const actions = context.definition.model.actions.get(context.contextReference());
+		actions?.forEach((action) => dispatchAction(context, setValue, action));
 
 		return guardDownstreamReadonlyWrites(context, relevantValueState);
 	});

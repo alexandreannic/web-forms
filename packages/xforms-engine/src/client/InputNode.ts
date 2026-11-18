@@ -49,8 +49,8 @@ interface InputNodeOptionsByValueType {
 	readonly time: null;
 	readonly dateTime: null;
 	readonly geopoint: GeoInputNodeOptions;
-	readonly geotrace: GeoInputNodeOptions;
-	readonly geoshape: GeoInputNodeOptions;
+	readonly geotrace: null;
+	readonly geoshape: null;
 	readonly binary: null;
 	readonly barcode: null;
 	readonly intent: null;
@@ -63,8 +63,10 @@ export type InputNodeOptions<V extends ValueType> = InputNodeOptionsByValueType[
  * {@link https://getodk.github.io/xforms-spec/#body-elements | XForms `<input>`},
  * which a user-facing client would likely present for a user to fill.
  */
-export interface InputNode<V extends ValueType = ValueType>
-	extends BaseValueNode<V, InputValue<V>> {
+export interface InputNode<V extends ValueType = ValueType> extends BaseValueNode<
+	V,
+	InputValue<V>
+> {
 	readonly nodeType: 'input';
 	readonly valueType: V;
 	readonly appearances: InputNodeAppearances;
@@ -85,13 +87,20 @@ export type StringInputValue = InputValue<'string'>;
 export type IntInputValue = InputValue<'int'>;
 export type DecimalInputValue = InputValue<'decimal'>;
 export type DateInputValue = InputValue<'date'>;
+export type TimeInputValue = InputValue<'time'>;
 export type GeopointInputValue = InputValue<'geopoint'>;
+export type GeoshapeInputValue = InputValue<'geoshape'>;
+export type GeotraceInputValue = InputValue<'geotrace'>;
 
 export type StringInputNode = InputNode<'string'>;
 export type IntInputNode = InputNode<'int'>;
 export type DecimalInputNode = InputNode<'decimal'>;
 export type DateInputNode = InputNode<'date'>;
+export type TimeInputNode = InputNode<'time'>;
+export type DateTimeInputNode = InputNode<'dateTime'>;
 export type GeopointInputNode = InputNode<'geopoint'>;
+export type GeoshapeInputNode = InputNode<'geoshape'>;
+export type GeotraceInputNode = InputNode<'geotrace'>;
 
 // prettier-ignore
 type SupportedInputValueType =
@@ -100,7 +109,11 @@ type SupportedInputValueType =
 	| 'int'
 	| 'decimal'
 	| 'date'
-	| 'geopoint';
+	| 'time'
+	| 'dateTime'
+	| 'geopoint'
+	| 'geoshape'
+	| 'geotrace';
 
 type TemporaryStringValueType = Exclude<ValueType, SupportedInputValueType>;
 
@@ -113,5 +126,9 @@ export type AnyInputNode =
 	| IntInputNode
 	| DecimalInputNode
 	| DateInputNode
+	| TimeInputNode
+	| DateTimeInputNode
 	| GeopointInputNode
+	| GeoshapeInputNode
+	| GeotraceInputNode
 	| TemporaryStringValueInputNode;

@@ -22,9 +22,11 @@ const hasColumnsAppearance = ref(false);
 const hasFieldListRelatedAppearance = ref(false);
 const savedFeatureValue = computed(() => {
 	if (!props.question.appearances.map) {
-		return;
+		return '';
 	}
-	return props.question.currentState.value?.[0];
+
+	const value = props.question.currentState.value?.[0];
+	return props.question.currentState.valueOptions.find((option) => option.value === value);
 });
 
 watchEffect(() => {
@@ -98,7 +100,7 @@ watchEffect(() => {
 	</template>
 
 	<ValidationMessage
-		:message="question.validationState.violation?.message.formatted"
+		:violation="question.validationState.violation"
 		:add-placeholder="!hasFieldListRelatedAppearance"
 	/>
 </template>

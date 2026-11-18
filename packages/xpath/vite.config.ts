@@ -1,7 +1,5 @@
-/// <reference types="vite/client" />
-/// <reference types="vitest" />
-
 import type { CollectionValues } from '@getodk/common/types/collections/CollectionValues';
+import { playwright } from '@vitest/browser-playwright';
 import { resolve as resolvePath } from 'node:path';
 import babel from 'vite-plugin-babel';
 import dts from 'vite-plugin-dts';
@@ -91,7 +89,7 @@ export default defineConfig(({ mode }) => {
 				formats: ['es'],
 			},
 			rollupOptions: {
-				external: ['fs', 'path'],
+				external: ['fs', 'path', 'temporal-polyfill'],
 			},
 		},
 		define: {
@@ -124,6 +122,7 @@ export default defineConfig(({ mode }) => {
 		].filter((plugin) => plugin != null),
 		resolve: {
 			alias: {
+				'@getodk/common/test-utils': resolvePath(__dirname, '../common/test-utils'),
 				'@getodk/common/types': resolvePath(__dirname, '../common/types'),
 				'@getodk/common': resolvePath(__dirname, '../common/src'),
 			},
@@ -132,7 +131,7 @@ export default defineConfig(({ mode }) => {
 			browser: {
 				enabled: BROWSER_ENABLED,
 				instances: BROWSER_NAME != null ? [{ browser: BROWSER_NAME }] : [],
-				provider: 'playwright',
+				provider: playwright(),
 				headless: true,
 				screenshotFailures: false,
 			},

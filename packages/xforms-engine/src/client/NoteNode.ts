@@ -40,8 +40,8 @@ export interface NoteNodeState<V extends ValueType> extends BaseValueNodeState<N
 	 */
 	readonly readonly: true;
 
-	get label(): TextRange<'label', 'form'> | null;
-	get hint(): TextRange<'hint', 'form'> | null;
+	get label(): TextRange<'label'> | null;
+	get hint(): TextRange<'hint'> | null;
 	get children(): null;
 	get valueOptions(): null;
 
@@ -82,13 +82,19 @@ export type StringNoteValue = NoteValue<'string'>;
 export type IntNoteValue = NoteValue<'int'>;
 export type DecimalNoteValue = NoteValue<'decimal'>;
 export type DateNoteValue = NoteValue<'date'>;
+export type TimeNoteValue = NoteValue<'time'>;
 export type GeopointNoteValue = NoteValue<'geopoint'>;
+export type GeoshapeNoteValue = NoteValue<'geoshape'>;
+export type GeotraceNoteValue = NoteValue<'geotrace'>;
 
 export type StringNoteNode = NoteNode<'string'>;
 export type IntNoteNode = NoteNode<'int'>;
 export type DecimalNoteNode = NoteNode<'decimal'>;
 export type DateNoteNode = NoteNode<'date'>;
+export type TimeNoteNode = NoteNode<'time'>;
 export type GeopointNoteNode = NoteNode<'geopoint'>;
+export type GeoshapeNoteNode = NoteNode<'geoshape'>;
+export type GeotraceNoteNode = NoteNode<'geotrace'>;
 
 // prettier-ignore
 type SupportedNoteValueType =
@@ -97,7 +103,10 @@ type SupportedNoteValueType =
 	| 'int'
 	| 'decimal'
 	| 'date'
-	| 'geopoint';
+	| 'time'
+	| 'geopoint'
+	| 'geoshape'
+	| 'geotrace';
 
 type TemporaryStringValueType = Exclude<ValueType, SupportedNoteValueType>;
 
@@ -110,5 +119,8 @@ export type AnyNoteNode =
 	| IntNoteNode
 	| DecimalNoteNode
 	| DateNoteNode
+	| TimeNoteNode
 	| GeopointNoteNode
+	| GeoshapeNoteNode
+	| GeotraceNoteNode
 	| TemporaryStringValueNoteNode;

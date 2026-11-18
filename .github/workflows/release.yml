@@ -5,36 +5,40 @@ on:
     tags:
       - '**@[0-9]+.[0-9]+.[0-9]+'
 
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up npm registry
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Cache Yarn dependencies
-        uses: actions/cache@v4
+      - name: Cache dependencies
+        uses: actions/cache@v5
         with:
           path: |
-            ~/.cache/yarn
             **/node_modules
-          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
-            yarn-${{ runner.os }}-
+            npm-${{ runner.os }}-
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: npm ci
 
       - name: Build packages
-        run: yarn build
+        run: npm run build
 
       - name: Publish packages
-        run: yarn changeset publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run changeset publish

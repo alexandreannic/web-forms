@@ -1,5 +1,5 @@
-import type { XFormsElement } from '@getodk/common/test/fixtures/xform-dsl/XFormsElement.ts';
-import { xmlElement } from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+import type { XFormsElement } from '@getodk/common/test-utils/xform-dsl/XFormsElement.ts';
+import { xmlElement } from '@getodk/common/test-utils/xform-dsl/index.ts';
 import type {
 	AnyFormInstance,
 	AnyNode,
@@ -175,6 +175,11 @@ export class Scenario {
 				fileNameFactory: ({ basename, extension }) => `${basename}${extension ?? ''}`,
 				...overrideOptions?.instanceAttachments,
 			},
+			preloadProperties: overrideOptions?.preloadProperties ?? {},
+			geolocationProvider: overrideOptions?.geolocationProvider ?? {
+				getLocation: () => Promise.resolve(''),
+			},
+			editInstance: overrideOptions?.editInstance ?? null,
 		};
 	}
 
@@ -1213,7 +1218,7 @@ export class Scenario {
 	}
 
 	/** @see {@link editInstance} */
-	async proposed_editCurrentInstanceState(): Promise<this> {
+	async editCurrentInstance(): Promise<this> {
 		const instance = await editInstance(this.form, this.instanceRoot);
 
 		return this.fork(instance);

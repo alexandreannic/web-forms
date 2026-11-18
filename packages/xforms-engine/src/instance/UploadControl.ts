@@ -9,8 +9,14 @@ import { UploadValueTypeError } from '../error/UploadValueTypeError.ts';
 import type { XFormsXPathElement } from '../integration/xpath/adapter/XFormsXPathNode.ts';
 import type { StaticLeafElement } from '../integration/xpath/static-dom/StaticElement.ts';
 import { createValueNodeInstanceState } from '../lib/client-reactivity/instance-state/createValueNodeInstanceState.ts';
-import { createAttributeState } from '../lib/reactivity/createAttributeState.ts';
-import { createInstanceAttachment } from '../lib/reactivity/createInstanceAttachment.ts';
+import {
+	createAttributeState,
+	type AttributeState,
+} from '../lib/reactivity/createAttributeState.ts';
+import {
+	createInstanceAttachment,
+	type BaseInstanceAttachmentState,
+} from '../lib/reactivity/createInstanceAttachment.ts';
 import type { CurrentState } from '../lib/reactivity/node-state/createCurrentState.ts';
 import type { EngineState } from '../lib/reactivity/node-state/createEngineState.ts';
 import type { SharedNodeState } from '../lib/reactivity/node-state/createSharedNodeState.ts';
@@ -29,6 +35,7 @@ import type {
 	InstanceAttachment,
 	InstanceAttachmentRuntimeValue,
 } from './attachments/InstanceAttachment.ts';
+import { buildAttributes } from './attachments/buildAttributes.ts';
 import type { GeneralParentNode } from './hierarchy.ts';
 import type { EvaluationContext } from './internal-api/EvaluationContext.ts';
 import type { InstanceAttachmentContext } from './internal-api/InstanceAttachmentContext.ts';
@@ -63,6 +70,7 @@ interface UploadControlStateSpec extends DescendantNodeStateSpec<InstanceAttachm
 	readonly valueOptions: null;
 	readonly value: SimpleAtomicState<InstanceAttachmentRuntimeValue>;
 	readonly instanceValue: Accessor<InstanceAttachmentFileName>;
+	readonly attachmentState: Accessor<BaseInstanceAttachmentState>;
 }
 
 export class UploadControl
@@ -106,6 +114,7 @@ export class UploadControl
 	// InstanceNode
 	protected readonly state: SharedNodeState<UploadControlStateSpec>;
 	protected readonly engineState: EngineState<UploadControlStateSpec>;
+	readonly attributeState: AttributeState;
 
 	// InstanceValueContext
 	readonly decodeInstanceValue: DecodeInstanceValue;
@@ -113,6 +122,7 @@ export class UploadControl
 	// UploadNode
 	readonly nodeType = 'upload';
 	readonly valueType = 'binary';
+	readonly maxPixels: number | null;
 	readonly appearances: UnknownAppearanceDefinition;
 	readonly nodeOptions: UploadNodeOptions;
 	readonly currentState: CurrentState<UploadControlStateSpec>;
@@ -132,11 +142,13 @@ export class UploadControl
 
 		this.appearances = definition.bodyElement.appearances;
 		this.nodeOptions = definition.bodyElement.options;
+		this.maxPixels = definition.bind.maxPixels;
 
 		const instanceAttachment = createInstanceAttachment(this);
 
 		this.instanceAttachment = instanceAttachment;
-		const attributeState = createAttributeState(this.scope);
+
+		this.attributeState = createAttributeState(this.scope);
 		this.decodeInstanceValue = instanceAttachment.decodeInstanceValue;
 		this.getXPathValue = instanceAttachment.getInstanceValue;
 
@@ -153,8 +165,9 @@ export class UploadControl
 				children: null,
 				valueOptions: null,
 				value: instanceAttachment.valueState,
-				attributes: attributeState.getAttributes,
+				attributes: this.attributeState.getAttributes,
 				instanceValue: instanceAttachment.getInstanceValue,
+				attachmentState: instanceAttachment.getState,
 			},
 			this.instanceConfig
 		);
@@ -163,6 +176,7 @@ export class UploadControl
 		this.engineState = state.engineState;
 		this.currentState = state.currentState;
 		this.validation = createValidationState(this, this.instanceConfig);
+		this.attributeState.setAttributes(buildAttributes(this));
 		this.instanceState = createValueNodeInstanceState(this);
 	}
 
@@ -180,10 +194,18 @@ export class UploadControl
 		return [];
 	}
 
+	override getAttributes(): readonly Attribute[] {
+		return this.attributeState.getAttributes();
+	}
+
 	// UploadNode
 	setValue(value: InstanceAttachmentRuntimeValue): Root {
 		this.instanceAttachment.setValue(value);
 
 		return this.root;
+	}
+
+	retryFetch() {
+		this.instanceAttachment.retry();
 	}
 }

@@ -58,7 +58,7 @@ export class MapControl {
 		await this.page.mouse.up();
 	}
 
-	async longPressMap(mapComponent: Locator, moveX: number, moveY: number) {
+	async tapToAddPoint(mapComponent: Locator, moveX: number, moveY: number) {
 		const box = await mapComponent.locator(this.MAP_CONTAINER_SELECTOR).boundingBox();
 		if (!box) {
 			return;
@@ -69,8 +69,9 @@ export class MapControl {
 
 		await this.page.mouse.move(centerX + moveX, centerY + moveY);
 		await this.page.mouse.down();
-		await this.page.waitForTimeout(1000); // Press and hold
+		await this.page.waitForTimeout(200); // Press
 		await this.page.mouse.up();
+		await this.page.waitForTimeout(300); // Process point
 	}
 
 	async zoomIn(mapComponent: Locator, times = 1) {
@@ -94,13 +95,13 @@ export class MapControl {
 	}
 
 	async zoomToFitAll(mapComponent: Locator) {
-		const button = mapComponent.locator('button[title="Zoom to fit all options"]');
+		const button = mapComponent.locator('button.zoom-fit-all');
 		await expect(button).toBeVisible();
 		await button.click();
 	}
 
 	async centerCurrentLocation(mapComponent: Locator) {
-		const button = mapComponent.locator('button[title="Zoom to current location"]');
+		const button = mapComponent.locator('button.zoom-current-location');
 		await expect(button).toBeVisible();
 		await button.click();
 		// Wait for the current location icon to appear on the map.
@@ -108,7 +109,7 @@ export class MapControl {
 	}
 
 	async toggleFullScreen(mapComponent: Locator) {
-		const button = mapComponent.locator('button[title="Full Screen"]');
+		const button = mapComponent.locator('button.fullscreen');
 		await expect(button).toBeVisible();
 		await button.click();
 	}
@@ -141,12 +142,6 @@ export class MapControl {
 
 	async removeSavedFeature(mapComponent: Locator) {
 		const button = mapComponent.locator('.map-properties').getByText('Remove selection');
-		await expect(button).toBeVisible();
-		await button.click();
-	}
-
-	async savePoint(mapComponent: Locator) {
-		const button = mapComponent.locator('.map-status-container').getByText('Save point');
 		await expect(button).toBeVisible();
 		await button.click();
 	}

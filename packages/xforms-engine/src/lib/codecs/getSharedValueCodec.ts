@@ -2,14 +2,34 @@ import type { ValueType } from '../../client/ValueType.ts';
 import type { DatetimeInputValue, DatetimeRuntimeValue } from './DateValueCodec.ts';
 import { DateValueCodec } from './DateValueCodec.ts';
 import {
-	DecimalValueCodec,
+	type DateTimeInputValue,
+	type DateTimeRuntimeValue,
+	DateTimeValueCodec,
+} from './DateTimeValueCodec.ts';
+import {
 	type DecimalInputValue,
 	type DecimalRuntimeValue,
+	DecimalValueCodec,
 } from './DecimalValueCodec.ts';
-import type { GeopointInputValue, GeopointRuntimeValue } from './Geopoint/Geopoint.ts';
-import { GeopointValueCodec } from './Geopoint/GeopointValueCodec.ts';
-import { IntValueCodec, type IntInputValue, type IntRuntimeValue } from './IntValueCodec.ts';
+import { createGeolocationValueCodec } from './geolocation/createGeolocationValueCodec.ts';
+import {
+	Geopoint,
+	type GeopointInputValue,
+	type GeopointRuntimeValue,
+} from './geolocation/Geopoint.ts';
+import {
+	Geoshape,
+	type GeoshapeInputValue,
+	type GeoshapeRuntimeValue,
+} from './geolocation/Geoshape.ts';
+import {
+	Geotrace,
+	type GeotraceInputValue,
+	type GeotraceRuntimeValue,
+} from './geolocation/Geotrace.ts';
+import { type IntInputValue, type IntRuntimeValue, IntValueCodec } from './IntValueCodec.ts';
 import { StringValueCodec } from './StringValueCodec.ts';
+import { type TimeInputValue, type TimeRuntimeValue, TimeValueCodec } from './TimeValueCodec.ts';
 import type { ValueCodec } from './ValueCodec.ts';
 import { ValueTypePlaceholderCodec } from './ValueTypePlaceholderCodec.ts';
 
@@ -19,11 +39,11 @@ interface RuntimeValuesByType {
 	readonly decimal: DecimalRuntimeValue;
 	readonly boolean: string;
 	readonly date: DatetimeRuntimeValue;
-	readonly time: string;
-	readonly dateTime: string;
+	readonly time: TimeRuntimeValue;
+	readonly dateTime: DateTimeRuntimeValue;
 	readonly geopoint: GeopointRuntimeValue;
-	readonly geotrace: string;
-	readonly geoshape: string;
+	readonly geotrace: GeotraceRuntimeValue;
+	readonly geoshape: GeoshapeRuntimeValue;
 	readonly binary: string;
 	readonly barcode: string;
 	readonly intent: string;
@@ -37,11 +57,11 @@ interface RuntimeInputValuesByType {
 	readonly decimal: DecimalInputValue;
 	readonly boolean: string;
 	readonly date: DatetimeInputValue;
-	readonly time: string;
-	readonly dateTime: string;
+	readonly time: TimeInputValue;
+	readonly dateTime: DateTimeInputValue;
 	readonly geopoint: GeopointInputValue;
-	readonly geotrace: string;
-	readonly geoshape: string;
+	readonly geotrace: GeotraceInputValue;
+	readonly geoshape: GeoshapeInputValue;
 	readonly binary: string;
 	readonly barcode: string;
 	readonly intent: string;
@@ -66,14 +86,26 @@ export const sharedValueCodecs: SharedValueCodecs = {
 	decimal: new DecimalValueCodec(),
 	boolean: new ValueTypePlaceholderCodec('boolean'),
 	date: new DateValueCodec(),
-	time: new ValueTypePlaceholderCodec('time'),
-	dateTime: new ValueTypePlaceholderCodec('dateTime'),
-	geopoint: new GeopointValueCodec(),
-	geotrace: new ValueTypePlaceholderCodec('geotrace'),
-	geoshape: new ValueTypePlaceholderCodec('geoshape'),
+	time: new TimeValueCodec(),
+	dateTime: new DateTimeValueCodec(),
 	binary: new ValueTypePlaceholderCodec('binary'),
 	barcode: new ValueTypePlaceholderCodec('barcode'),
 	intent: new ValueTypePlaceholderCodec('intent'),
+	geopoint: createGeolocationValueCodec<'geopoint', GeopointRuntimeValue, GeopointInputValue>(
+		'geopoint',
+		(value) => Geopoint.parseGeopointToString(value),
+		(value) => Geopoint.parseStringToGeopoint(value)
+	),
+	geotrace: createGeolocationValueCodec<'geotrace', GeotraceRuntimeValue, GeotraceInputValue>(
+		'geotrace',
+		(value) => Geotrace.parseGeotraceString(value),
+		(value) => Geotrace.parseStringToGeotrace(value)
+	),
+	geoshape: createGeolocationValueCodec<'geoshape', GeoshapeRuntimeValue, GeoshapeInputValue>(
+		'geoshape',
+		(value) => Geoshape.parseGeoshapeString(value),
+		(value) => Geoshape.parseStringToGeoshape(value)
+	),
 };
 
 export const getSharedValueCodec = <V extends ValueType>(valueType: V): SharedValueCodec<V> => {

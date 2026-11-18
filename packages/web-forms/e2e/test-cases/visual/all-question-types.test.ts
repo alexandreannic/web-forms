@@ -119,24 +119,18 @@ test.describe('All Question Types (Visual)', () => {
 
 		test('renders overlay and taps on button to start the action', async () => {
 			await formPage.map.expectMapScreenshot(mapComponent, 'placement-map-initial-state.png');
-			await formPage.map.getLocationFromOverlay(mapComponent);
+			await formPage.map.centerCurrentLocation(mapComponent);
 			await formPage.waitForNetworkIdle();
 			await formPage.map.scrollMapIntoView(mapComponent);
 			await formPage.map.expectMapScreenshot(mapComponent, 'placement-map-current-location.png');
 		});
 
-		test('saves current location, adds a new point elsewhere, removes saved point', async () => {
-			await formPage.map.savePoint(mapComponent);
-			await formPage.map.expectMapScreenshot(
-				mapComponent,
-				'placement-map-current-location-saved.png'
-			);
-
-			await formPage.map.longPressMap(mapComponent, 100, 100);
+		test('adds a new point elsewhere, removes saved point', async () => {
+			await formPage.map.tapToAddPoint(mapComponent, 100, 100);
 			await formPage.map.expectMapScreenshot(mapComponent, 'placement-map-new-point-saved.png');
 
 			await formPage.map.removeSavedPoint(mapComponent);
-			await formPage.map.expectMapScreenshot(mapComponent, 'placement-map-initial-state.png');
+			await formPage.map.expectMapScreenshot(mapComponent, 'placement-map-point-removed.png');
 		});
 	});
 
@@ -163,15 +157,67 @@ test.describe('All Question Types (Visual)', () => {
 			await formPage.map.expectMapScreenshot(mapComponent, 'geopoint-maps-current-location.png');
 		});
 
-		test('saves current location and removes saved point', async () => {
-			await formPage.map.savePoint(mapComponent);
-			await formPage.map.expectMapScreenshot(
-				mapComponent,
-				'geopoint-maps-current-location-saved.png'
-			);
-
+		test('removes saved point', async () => {
 			await formPage.map.removeSavedPoint(mapComponent);
 			await formPage.map.expectMapScreenshot(mapComponent, 'geopoint-maps-initial-state.png');
+		});
+	});
+
+	test.describe('Geoshape', () => {
+		let mapComponent: Locator;
+
+		test.beforeAll(async () => {
+			await formPage.waitForNetworkIdle();
+			await formPage.text.expectHint('geoshape type with no appearance');
+			mapComponent = formPage.map.getMapComponentLocator(
+				'Polygon that can be either manually-entered or automatically recorded on a map'
+			);
+		});
+
+		test.beforeEach(async () => {
+			await formPage.waitForNetworkIdle();
+			await formPage.map.expectMapVisible(mapComponent);
+			await formPage.map.scrollMapIntoView(mapComponent);
+		});
+
+		test('autocloses shape when adding vertices', async () => {
+			await formPage.map.expectMapScreenshot(mapComponent, 'geoshape-initial-state.png');
+			await formPage.waitForNetworkIdle();
+			await formPage.map.scrollMapIntoView(mapComponent);
+			await formPage.map.tapToAddPoint(mapComponent, 100, 100);
+			await formPage.map.tapToAddPoint(mapComponent, 150, -50);
+			await formPage.map.expectMapScreenshot(mapComponent, 'geoshape-uncompleted-polygon.png');
+			await formPage.map.tapToAddPoint(mapComponent, 50, -150);
+			await formPage.map.expectMapScreenshot(mapComponent, 'geoshape-autoclose-polygon.png');
+		});
+	});
+
+	test.describe('Geotrace', () => {
+		let mapComponent: Locator;
+
+		test.beforeAll(async () => {
+			await formPage.waitForNetworkIdle();
+			await formPage.text.expectHint('geotrace type with no appearance');
+			mapComponent = formPage.map.getMapComponentLocator(
+				'Line that can be either manually-entered or automatically recorded on a map'
+			);
+		});
+
+		test.beforeEach(async () => {
+			await formPage.waitForNetworkIdle();
+			await formPage.map.expectMapVisible(mapComponent);
+			await formPage.map.scrollMapIntoView(mapComponent);
+		});
+
+		test('should not autoclose the trace when adding vertices', async () => {
+			await formPage.map.expectMapScreenshot(mapComponent, 'geotrace-initial-state.png');
+			await formPage.waitForNetworkIdle();
+			await formPage.map.scrollMapIntoView(mapComponent);
+			await formPage.map.tapToAddPoint(mapComponent, 100, 100);
+			await formPage.map.tapToAddPoint(mapComponent, 150, -50);
+			await formPage.map.expectMapScreenshot(mapComponent, 'geotrace-two-points.png');
+			await formPage.map.tapToAddPoint(mapComponent, 50, -75);
+			await formPage.map.expectMapScreenshot(mapComponent, 'geoshape-three-points.png');
 		});
 	});
 });

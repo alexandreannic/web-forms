@@ -1,17 +1,23 @@
 import { POST_SUBMIT__NEW_INSTANCE } from '@/lib/constants/control-flow.ts';
+import type { FormOptions } from '@/lib/init/load-form-state.ts';
 import type { OptionalHostSubmissionResult } from '@/lib/submission/host-submission-result-callback.ts';
-import { ENGINE_FORM_INSTANCE_CONFIG } from './engine-config.ts';
+import type { PreloadProperties } from '@getodk/xforms-engine';
+import { getFormInstanceConfig } from './engine-config.ts';
 import type { FormStateSuccessResult } from './form-state.ts';
 
-/**
- * @todo Clean up {@link currentState}'s {@link FormStateSuccessResult.instance}
- * before creating a new one. (Requires engine support, but will need to be
- * invoked here!)
- */
-const resetInstanceState = (currentState: FormStateSuccessResult): FormStateSuccessResult => {
-	const { form } = currentState;
-	const instance = form.createInstance(ENGINE_FORM_INSTANCE_CONFIG);
+interface ResetFormStateOptions {
+	readonly form: FormOptions;
+	readonly trackDevice?: boolean;
+	readonly preloadProperties?: PreloadProperties;
+}
 
+const resetInstanceState = (
+	currentState: FormStateSuccessResult,
+	options: ResetFormStateOptions
+): FormStateSuccessResult => {
+	const { form } = currentState;
+	const instanceConfig = getFormInstanceConfig(options);
+	const instance = form.resetInstance(instanceConfig);
 	return {
 		status: 'FORM_STATE_SUCCESS',
 		error: null,
@@ -23,10 +29,11 @@ const resetInstanceState = (currentState: FormStateSuccessResult): FormStateSucc
 
 export const updateSubmittedFormState = (
 	submissionResult: OptionalHostSubmissionResult,
-	currentState: FormStateSuccessResult
+	currentState: FormStateSuccessResult,
+	options: ResetFormStateOptions
 ): FormStateSuccessResult => {
 	if (submissionResult?.next === POST_SUBMIT__NEW_INSTANCE) {
-		return resetInstanceState(currentState);
+		return resetInstanceState(currentState, options);
 	}
 
 	return currentState;

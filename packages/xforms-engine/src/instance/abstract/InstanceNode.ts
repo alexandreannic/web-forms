@@ -28,7 +28,7 @@ import type { AnyNodeDefinition } from '../../parse/model/NodeDefinition.ts';
 import type { Attribute } from '../Attribute.ts';
 import type { PrimaryInstance } from '../PrimaryInstance.ts';
 import type { Root } from '../Root.ts';
-import type { AnyChildNode, AnyNode, AnyParentNode } from '../hierarchy.ts';
+import type { AnyChildNode, AnyNode } from '../hierarchy.ts';
 import { nodeID } from '../identity.ts';
 import type { EvaluationContext } from '../internal-api/EvaluationContext.ts';
 import type { InstanceConfig } from '../internal-api/InstanceConfig.ts';
@@ -62,8 +62,8 @@ type AnyInstanceNode = InstanceNode<
 	AnyNodeDefinition,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	InstanceNodeStateSpec<any>,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	any
+	AnyNode | null,
+	AnyChildNode | null
 >;
 
 /**
@@ -78,13 +78,15 @@ export type InstanceNodeCurrentState<
 > =
 	& CurrentState<Omit<Spec, 'children'>>
 	& {
-			readonly children: [Child] extends [AnyChildNode]
-				? readonly Child[]
-				: null;
-		};
+	readonly children: [Child] extends [null]
+		? null
+		: null extends Child
+			? ReadonlyArray<NonNullable<Child>> | null
+			: ReadonlyArray<NonNullable<Child>>;
+};
 
 interface ComputableReferenceNode {
-	readonly parent: AnyParentNode | null;
+	readonly parent: AnyNode | null;
 	readonly definition: AnyNodeDefinition;
 }
 
@@ -100,12 +102,12 @@ export interface InstanceNodeOptions {
 }
 
 export abstract class InstanceNode<
-		Definition extends AnyNodeDefinition,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		Spec extends InstanceNodeStateSpec<any>,
-		Parent extends AnyParentNode | null,
-		Child extends AnyChildNode | null = null,
-	>
+	Definition extends AnyNodeDefinition,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	Spec extends InstanceNodeStateSpec<any>,
+	Parent extends AnyNode | null,
+	Child extends AnyChildNode | null = null,
+>
 	implements BaseEngineNode, XFormsXPathPrimaryInstanceNode, EvaluationContext
 {
 	protected abstract readonly state: SharedNodeState<Spec>;
@@ -139,6 +141,12 @@ export abstract class InstanceNode<
 	 * conditional behavior for value nodes.
 	 */
 	abstract readonly isRelevant: Accessor<boolean>;
+
+	/**
+	 * @package Exposed on every node type to facilitate inheritance, as well as
+	 * conditional behavior for value nodes.
+	 */
+	abstract readonly hasRelevantBodyNodes: Accessor<boolean>;
 
 	// BaseNode: identity
 	readonly nodeId: FormNodeID;
@@ -272,4 +280,6 @@ export abstract class InstanceNode<
 			.map((child) => child.getXPathValue())
 			.join('');
 	}
+
+	abstract getAttributes(): readonly Attribute[];
 }

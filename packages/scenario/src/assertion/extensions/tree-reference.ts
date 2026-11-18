@@ -1,17 +1,14 @@
-import type { DeriveStaticVitestExpectExtension } from '@getodk/common/test/assertions/helpers.ts';
-import {
-	extendExpect,
-	InspectableComparisonError,
-	instanceAssertion,
-	SymmetricTypedExpectExtension,
-} from '@getodk/common/test/assertions/helpers.ts';
 import { expect } from 'vitest';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - it is unclear why TypeScript does not see this specific import
-// referenced in the JSDoc block below... it usually doesn't error for this
-// exact pattern of of usage.
+// referenced in the JSDoc block below... it usually doesn't error for this exact pattern of usage.
 import type { Scenario } from '../../jr/Scenario.ts';
 import { JRTreeReference } from '../../jr/xpath/JRTreeReference.ts';
+import { instanceAssertion } from '../instanceAssertion.ts';
+import { extendExpect } from '../vitest/extendExpect.ts';
+import { InspectableComparisonError } from '../vitest/InspectableComparisonError.ts';
+import type { DeriveStaticVitestExpectExtension } from '../vitest/shared-extension-types.ts';
+import { SymmetricTypedExpectExtension } from '../vitest/SymmetricTypedExpectExtension.ts';
 
 const assertJRTreeReference = instanceAssertion(JRTreeReference);
 
@@ -52,8 +49,9 @@ type TreeReferenceExtensions = typeof treeReferenceExtensions;
 
 declare module 'vitest' {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	interface Assertion<T = any>
-		extends DeriveStaticVitestExpectExtension<TreeReferenceExtensions, T> {}
-	interface AsymmetricMatchersContaining
-		extends DeriveStaticVitestExpectExtension<TreeReferenceExtensions> {}
+	interface Assertion<T = any> extends DeriveStaticVitestExpectExtension<
+		TreeReferenceExtensions,
+		T
+	> {}
+	interface AsymmetricMatchersContaining extends DeriveStaticVitestExpectExtension<TreeReferenceExtensions> {}
 }

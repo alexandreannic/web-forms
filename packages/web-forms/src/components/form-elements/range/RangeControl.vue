@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { AnyRangeNode } from '@getodk/xforms-engine';
+import Rating from 'primevue/rating';
 import { computed } from 'vue';
 import ControlText from '../ControlText.vue';
 import RangeSlider from './RangeSlider.vue';
@@ -13,8 +14,8 @@ const props = defineProps<RangeControlProps>();
 defineEmits(['update:modelValue', 'change']);
 
 const { bounds } = props.node.definition;
-const min = Number(bounds.min);
-const max = Number(bounds.max);
+const start = Number(bounds.start);
+const end = Number(bounds.end);
 const step = Number(bounds.step);
 
 const numberValue = computed((): number | undefined => {
@@ -43,24 +44,39 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 <template>
 	<ControlText :question="node" />
 
-	<div :class="['range-control-container', orientation]">
-		<div class="range-bound range-min">
-			{{ min }}
-		</div>
-		<RangeSlider
+	<template v-if="props.node.appearances.rating">
+		<Rating
 			:id="node.nodeId"
 			:disabled="node.currentState.readonly"
-			:min="min"
-			:max="max"
-			:step="step"
-			:orientation="orientation"
 			:model-value="numberValue"
+			:stars="end"
 			@update:model-value="setValue"
 		/>
-		<div class="range-bound range-max">
-			{{ max }}
+	</template>
+
+	<template v-else>
+		<div :class="['range-control-container', orientation]">
+			<div class="range-value">
+				<span>{{ numberValue }}</span>
+			</div>
+			<RangeSlider
+				:id="node.nodeId"
+				:disabled="node.currentState.readonly"
+				:min="start"
+				:max="end"
+				:step="step"
+				:orientation="orientation"
+				:model-value="numberValue"
+				@update:model-value="setValue"
+			/>
+			<div class="range-bound range-min">
+				{{ start }}
+			</div>
+			<div class="range-bound range-max">
+				{{ end }}
+			</div>
 		</div>
-	</div>
+	</template>
 </template>
 
 <style scoped lang="scss">
@@ -74,10 +90,6 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 // - Ticks are not supported. I spent more time than I'd like on this, but it's
 //   non-trivial to integrate with PrimeVue's styling. I backed out due to the
 //   complexity.
-//
-// - There is no way to indicate the present value. The official MUI (React)
-//   component does this with a tooltip which shows when hovering the "thumb"
-//   control.
 //
 // - Should we flip either of the following in RTL languages?
 //
@@ -97,17 +109,24 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 	--track-value-emphasis: 0.125rem;
 	--thumb-size: 1.25rem;
 	--tick-size: 0.125rem;
+	--gutter-width: 2lh;
 
 	position: relative;
 
 	.range-bound {
 		position: absolute;
 		line-height: 1;
+		font-size: var(--odk-hint-font-size);
+		color: var(--odk-muted-text-color);
+	}
+
+	.range-value {
+		font-weight: bold;
 	}
 
 	&.horizontal {
 		height: var(--track-size);
-		padding: 0 0.5rem 2lh 0.5rem;
+		padding: var(--gutter-width) var(--odk-spacing-m);
 
 		.range-bound {
 			bottom: 0;
@@ -120,11 +139,20 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 		.range-max {
 			right: 0;
 		}
+
+		.range-value {
+			text-align: center;
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+		}
 	}
 
 	&.vertical {
+
 		width: var(--track-size);
-		padding: 0.5lh 3rem 0.5lh;
+		padding: var(--odk-spacing-m) var(--gutter-width);
 
 		// Vertical appearance is centered. Consistent with
 		// https://docs.getodk.org/form-question-types/#vertical-range-widget
@@ -132,14 +160,31 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 
 		.range-bound {
 			right: 0;
+			width: 1rem;
 		}
 
 		.range-min {
-			top: 0;
+			bottom: 0;
 		}
 
 		.range-max {
+			top: 0;
+		}
+
+		.range-value {
+			display: flex;
+			position: absolute;
+			top: 0;
 			bottom: 0;
+			align-items: center;
+			right: var(--gutter-width);
+			padding-right: var(--odk-spacing-l);
+
+			span {
+				display: inline-block;
+				width: var(--gutter-width);
+				text-align: right;
+			}
 		}
 	}
 }
@@ -147,6 +192,15 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 // = track (full-width; full-height in vertical orientation)
 .p-slider {
 	background-color: var(--odk-primary-light-background-color);
+
+	&::before { // Increasing range hit target.
+		content: "";
+		position: absolute;
+		top: -10px;
+		bottom: -10px;
+		left: -10px;
+		right: -10px;
+	}
 
 	// = emphasized range between `min` and current value
 	:deep(.p-slider-range) {
@@ -196,5 +250,9 @@ const orientation = props.node.appearances.vertical ? 'vertical' : 'horizontal';
 
 		z-index: var(--odk-z-index-form-content);
 	}
+}
+
+.p-rating {
+	flex-wrap: wrap;
 }
 </style>

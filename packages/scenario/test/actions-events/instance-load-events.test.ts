@@ -10,7 +10,7 @@ import {
 	setvalue,
 	t,
 	title,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import { describe, expect, it } from 'vitest';
 import { intAnswer } from '../../src/answer/ExpectedIntAnswer.ts';
 import { stringAnswer } from '../../src/answer/ExpectedStringAnswer.ts';
@@ -163,7 +163,7 @@ describe('instance load events', () => {
 
 			expect(scenario.answerOf('/data/q1')).toEqualAnswer(intAnswer(16));
 			scenario.answer('/data/q1', 555);
-			const restored = await scenario.proposed_editCurrentInstanceState();
+			const restored = await scenario.editCurrentInstance();
 			expect(restored.answerOf('/data/q1')).toEqualAnswer(intAnswer(555));
 		});
 	});

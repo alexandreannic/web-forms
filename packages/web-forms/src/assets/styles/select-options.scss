@@ -1,6 +1,4 @@
-.value-option {
-	--text-content-margin: 15px;
-}
+@use 'primeflex/core/_variables.scss' as pf;
 
 .value-option {
 	display: flex;
@@ -40,7 +38,7 @@
 
 	&.disabled,
 	&.disabled label {
-		cursor: not-allowed;
+		cursor: default;
 		opacity: 0.5;
 
 		&:not(.active):hover {
@@ -55,10 +53,12 @@
 	}
 
 	:deep(.media-content) {
-		background: var(--odk-base-background-color);
-		height: calc(100% - (var(--odk-base-font-size) + (var(--text-content-margin) * 2)));
-		width: 100%;
-		justify-items: center;
+		background: transparent;
+		height: calc(100% - (var(--odk-base-font-size) + (var(--odk-spacing-l) * 2)));
+		min-height: 54px;
+		flex: 0 1 auto;
+		margin-left: auto;
+		align-content: center;
 	}
 
 	&:has(.media-content) {
@@ -66,13 +66,16 @@
 
 		:deep(.p-checkbox),
 		:deep(.p-radiobutton) {
-			margin: auto 0 auto 20px;
+			margin: auto 0 auto var(--odk-spacing-xl);
 			align-self: flex-start;
 		}
 
 		:deep(.text-content) {
+			width: fit-content;
+			min-width: unset;
 			max-width: calc(100% - 70px);
-			margin: var(--text-content-margin) 20px;
+			margin: var(--odk-spacing-l) var(--odk-spacing-xl);
+			flex: 1 1 auto;
 		}
 	}
 }
@@ -87,11 +90,34 @@
 }
 
 .value-option:not(.no-buttons) :deep(.text-content) {
-	margin-left: 10px;
+	margin-left: var(--odk-spacing-m);
 }
 
 .select-with-images .value-option {
 	background: var(--odk-light-background-color);
 	align-content: flex-start;
 	flex-wrap: wrap;
+
+	:deep(.media-content) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		justify-content: flex-start;
+		gap: var(--odk-spacing-m);
+
+		.media-block {
+			border-radius: 0;
+		}
+	}
+}
+
+@media screen and (max-width: #{pf.$sm}) {
+	:not(.select-with-images) .value-option {
+		flex-wrap: wrap;
+
+		:deep(.media-content) {
+			margin-left: unset;
+		}
+	}
 }

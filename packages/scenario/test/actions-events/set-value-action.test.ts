@@ -12,7 +12,7 @@ import {
 	setvalueLiteral,
 	t,
 	title,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import { describe, expect, it } from 'vitest';
 import { intAnswer } from '../../src/answer/ExpectedIntAnswer.ts';
 import { stringAnswer } from '../../src/answer/ExpectedStringAnswer.ts';
@@ -182,7 +182,7 @@ describe('setvalue action', () => {
 	});
 
 	describe('region repeats', () => {
-		describe('[`setvalue`] source in repeat', () => {
+		describe('`setvalue` source in repeat', () => {
 			// ported from: https://github.com/getodk/javarosa/blob/2dd8e15e9f3110a86f8d7d851efc98627ae5692e/src/test/java/org/javarosa/core/model/actions/SetValueActionTest.java#L251
 			it('updates destination in the same repeat instance', async () => {
 				const scenario = await Scenario.init(
@@ -534,6 +534,69 @@ describe('setvalue action', () => {
 			expect(scenario.answerOf('/data/readonly-field')).toEqualAnswer(intAnswer(16));
 		});
 
+		it('does not update after load', async () => {
+			const scenario = await Scenario.init(
+				'Setvalue readonly',
+				html(
+					head(
+						title('Setvalue readonly'),
+						model(
+							mainInstance(t('data id="setvalue-readonly"', t('output'), t('input', '5'))),
+							bind('/data/output').type('int'),
+							setvalue('odk-instance-first-load', '/data/output', '/data/input * 4')
+						)
+					),
+					body(input('/data/output'), input('/data/input'))
+				)
+			);
+
+			expect(scenario.answerOf('/data/output')).toEqualAnswer(intAnswer(20));
+			scenario.answer('/data/input', '4');
+			expect(scenario.answerOf('/data/output')).toEqualAnswer(intAnswer(20));
+		});
+
+		it('does not update after field becomes relevant', async () => {
+			const scenario = await Scenario.init(
+				'Setvalue readonly',
+				html(
+					head(
+						title('Setvalue readonly'),
+						model(
+							mainInstance(t('data id="setvalue-readonly"', t('output'), t('input', '5'))),
+							bind('/data/output').relevant('/data/input = 3').type('int'),
+							setvalue('odk-instance-first-load', '/data/output', '/data/input * 4')
+						)
+					),
+					body(input('/data/output'), input('/data/input'))
+				)
+			);
+
+			expect(scenario.answerOf('/data/output')).toEqualAnswer(stringAnswer(''));
+			scenario.answer('/data/input', '3'); // makes the output relevant
+			expect(scenario.answerOf('/data/output')).toEqualAnswer(stringAnswer(''));
+		});
+
+		it('odk-instance-first-load does not update on repeat add', async () => {
+			const scenario = await Scenario.init(
+				'Setvalue repeat',
+				html(
+					head(
+						title('Setvalue multiple'),
+						model(
+							mainInstance(t('data id="setvalue-multiple"', t('repeat id=""', t('source')))),
+							setvalueLiteral('odk-instance-first-load', '/data/repeat/source', 'first')
+						)
+					),
+					body(repeat('/data/repeat', input('/data/repeat/source')))
+				)
+			);
+
+			expect(scenario.answerOf('/data/repeat[1]/source').getValue()).toBe('first');
+			scenario.createNewRepeat('/data/repeat');
+			expect(scenario.answerOf('/data/repeat[1]/source').getValue()).toBe('first');
+			expect(scenario.answerOf('/data/repeat[2]/source').getValue()).toBe('');
+		});
+
 		// ported from: https://github.com/getodk/javarosa/blob/2dd8e15e9f3110a86f8d7d851efc98627ae5692e/src/test/java/org/javarosa/core/model/actions/SetValueActionTest.java#L468
 		describe('with inner empty string', () => {
 			it('clears the `ref` target', async () => {
@@ -555,7 +618,7 @@ describe('setvalue action', () => {
 			});
 		});
 
-		describe('with empty string `value` [attribute]', () => {
+		describe('with empty string `value` attribute', () => {
 			// ported from: https://github.com/getodk/javarosa/blob/2dd8e15e9f3110a86f8d7d851efc98627ae5692e/src/test/java/org/javarosa/core/model/actions/SetValueActionTest.java#L488
 			it('clears the `ref` target', async () => {
 				const scenario = await Scenario.init(
@@ -642,6 +705,137 @@ describe('setvalue action', () => {
 
 			expect(scenario.answerOf('/data/destination')).toEqualAnswer(intAnswer(24));
 		});
+
+		it('is not triggered when loading form for editing', async () => {
+			const originalDate = '2025-01-01T10:23:28.822+13:00';
+			const instanceXML = `<data id="xforms-value-changed-event">
+	<source>5</source>
+	<destination>${originalDate}</destination>
+	<meta>
+		<instanceID>uuid:c0b9c932-e78b-474b-8568-48980113a7ac</instanceID>
+	</meta>
+</data>`;
+			const form = html(
+				head(
+					title('Value changed event'),
+					model(
+						mainInstance(t('data id="xforms-value-changed-event"', t('source'), t('destination'))),
+						bind('/data/destination').type('dateTime')
+					)
+				),
+				body(input('/data/source', setvalue('xforms-value-changed', '/data/destination', 'now()')))
+			);
+			const scenario = await Scenario.init('upgrade form', form, {
+				editInstance: instanceXML,
+			});
+
+			expect(scenario.answerOf('/data/destination')).toEqualAnswer(stringAnswer(originalDate));
+
+			scenario.answer('/data/source', 12);
+			expect(scenario.answerOf('/data/destination')).not.toEqualAnswer(stringAnswer(originalDate));
+		});
+
+		it('is triggered when target is made relevant', async () => {
+			const scenario = await Scenario.init(
+				'xforms-value-changed-event',
+				html(
+					head(
+						title('Value changed event'),
+						model(
+							mainInstance(
+								t('data id="xforms-value-changed-event"', t('source'), t('destination'))
+							),
+							bind('/data/source').type('string'),
+							bind('/data/destination').type('string').relevant("/data/source != ''")
+						)
+					),
+					body(
+						input(
+							'/data/source',
+							setvalue('xforms-value-changed', '/data/destination', '/data/source')
+						)
+					)
+				)
+			);
+
+			scenario.answer('/data/source', 'myvalue');
+
+			expect(scenario.answerOf('/data/destination')).toEqualAnswer(stringAnswer('myvalue'));
+		});
+
+		it('does not trigger when source has an initial value', async () => {
+			const scenario = await Scenario.init(
+				'xforms-value-changed-event',
+				html(
+					head(
+						title('Value changed event'),
+						model(
+							mainInstance(
+								t(
+									'data id="xforms-value-changed-event"',
+									t('source', 'foo'),
+									t('trigger'),
+									t('grp', t('destination'))
+								)
+							),
+							bind('/data/source').type('string'),
+							bind('/data/trigger').type('string'),
+							bind('/data/grp/destination').type('string').relevant("/data/trigger = 'yes'")
+						)
+					),
+					body(
+						input(
+							'/data/source',
+							setvalue('xforms-value-changed', '/data/grp/destination', '/data/source')
+						),
+						input('/data/trigger'),
+						group('/data/grp', input('/data/grp/destination'))
+					)
+				)
+			);
+
+			expect(scenario.answerOf('/data/grp/destination')).toEqualAnswer(stringAnswer(''));
+			scenario.answer('/data/trigger', 'yes'); // make destination relevant
+			expect(scenario.answerOf('/data/grp/destination')).toEqualAnswer(stringAnswer(''));
+		});
+
+		it('sets value even if not relevant (yet)', async () => {
+			const scenario = await Scenario.init(
+				'xforms-value-changed-event',
+				html(
+					head(
+						title('Value changed event'),
+						model(
+							mainInstance(
+								t(
+									'data id="xforms-value-changed-event"',
+									t('source', 'foo'),
+									t('trigger'),
+									t('grp', t('destination'))
+								)
+							),
+							bind('/data/source').type('string'),
+							bind('/data/trigger').type('string'),
+							bind('/data/grp/destination').type('string').relevant("/data/trigger = 'yes'")
+						)
+					),
+					body(
+						input(
+							'/data/source',
+							setvalue('xforms-value-changed', '/data/grp/destination', '/data/source')
+						),
+						input('/data/trigger'),
+						group('/data/grp', input('/data/grp/destination'))
+					)
+				)
+			);
+
+			expect(scenario.answerOf('/data/grp/destination')).toEqualAnswer(stringAnswer(''));
+			scenario.answer('/data/trigger', 'no');
+			scenario.answer('/data/source', 'bar');
+			scenario.answer('/data/trigger', 'yes');
+			expect(scenario.answerOf('/data/grp/destination')).toEqualAnswer(stringAnswer('bar'));
+		});
 	});
 
 	describe('`setvalue`', () => {
@@ -685,5 +879,33 @@ describe('setvalue action', () => {
 			const newInstance = cached.newInstance();
 			expect(newInstance.attributeOf('/data/element', 'attr').getValue()).toBe('7');
 		});
+	});
+
+	it('allows multiple `setvalue` elements with the same `ref`', async () => {
+		const scenario = await Scenario.init(
+			'Setvalue multiple',
+			html(
+				head(
+					title('Setvalue multiple'),
+					model(
+						mainInstance(t('data id="setvalue-multiple"', t('repeat id=""', t('source')))),
+						setvalueLiteral('odk-instance-first-load', '/data/repeat/source', 'first')
+					)
+				),
+				body(
+					repeat(
+						'/data/repeat',
+						input(
+							'/data/repeat/source',
+							setvalueLiteral('odk-new-repeat', '/data/repeat/source', 'second')
+						)
+					)
+				)
+			)
+		);
+		expect(scenario.answerOf('/data/repeat[1]/source').getValue()).toBe('first');
+		scenario.createNewRepeat('/data/repeat');
+		expect(scenario.answerOf('/data/repeat[1]/source').getValue()).toBe('first');
+		expect(scenario.answerOf('/data/repeat[2]/source').getValue()).toBe('second');
 	});
 });

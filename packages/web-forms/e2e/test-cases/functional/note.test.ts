@@ -21,11 +21,9 @@ test.describe('Note Question Type', () => {
 			altitude: 0,
 		});
 
-		await formPage.text.expectLabel(`
-		This form illustrates the note concept in ODK. This is not a concept that exists in
-          the underlying ODK XForms spec, it's introduced by XLSForm and discussed informally.
-          Typically a note only has a label.
-		`);
+		await formPage.text.expectLabel(
+			"This form illustrates the note concept in ODK. This is not a concept that exists in the underlying ODK XForms spec, it's introduced by XLSForm and discussed informally. Typically a note only has a label."
+		);
 
 		await formPage.text.expectLabel('A note with a hint');
 		await formPage.text.expectHint('This is a hint');
@@ -48,9 +46,9 @@ test.describe('Note Question Type', () => {
 
 		await formPage.text.expectLabel('A note with geopoint type');
 		await formPage.geopoint.expectGeopointFormattedValue([
-			'Accuracy: 150 m',
-			'Latitude: 38.253094215699576',
-			'Longitude: 21.756382658677467',
+			'Accuracy: 150 m,',
+			'Latitude: 38.253094215699576,',
+			'Longitude: 21.756382658677467.',
 		]);
 	});
 });

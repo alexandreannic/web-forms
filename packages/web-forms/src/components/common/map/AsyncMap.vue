@@ -4,18 +4,19 @@
  * This prevents unnecessary bloat in the main application bundle, reducing initial load times and improving performance.
  * Use dynamic imports instead (e.g., `await import(importPath)`) for lazy-loading these dependencies only when required.
  */
+import { createFeatureCollectionAndProps } from '@/components/common/map/geojson-parsers.ts';
+import type { Mode, SingleFeatureType } from '@/components/common/map/getModeConfig.ts';
 import type { SelectItem } from '@getodk/xforms-engine';
+import type { Feature } from 'geojson';
 import ProgressSpinner from 'primevue/progressspinner';
-import { computed, type DefineComponent, onMounted, shallowRef } from 'vue';
-import type { Mode } from '@/components/common/map/getModeConfig.ts';
-import {
-	createFeatureCollectionAndProps,
-	type Feature,
-} from '@/components/common/map/createFeatureCollectionAndProps.ts';
+import { TRANSLATE } from '@/lib/constants/injection-keys.ts';
+import type { Translate } from '@/lib/locale/useLocale.ts';
+import { computed, type DefineComponent, inject, onMounted, shallowRef } from 'vue';
 
 type MapBlockComponent = DefineComponent<{
 	featureCollection: { type: string; features: Feature[] };
 	disabled: boolean;
+	singleFeatureType?: SingleFeatureType;
 	mode: Mode;
 	orderedExtraProps: Map<string, Array<[key: string, value: string]>>;
 	savedFeatureValue: Feature | undefined;
@@ -24,12 +25,15 @@ type MapBlockComponent = DefineComponent<{
 interface AsyncMapProps {
 	features?: readonly SelectItem[];
 	disabled: boolean;
+	singleFeatureType?: SingleFeatureType;
 	mode: Mode;
-	savedFeatureValue: string | undefined;
+	savedFeatureValue: SelectItem | string | undefined;
 }
 
 const props = defineProps<AsyncMapProps>();
 const emit = defineEmits(['save']);
+
+const t: Translate = inject(TRANSLATE)!;
 
 const STATES = {
 	READY: 'ready',
@@ -71,9 +75,8 @@ onMounted(loadMap);
 <template>
 	<div class="async-map-container">
 		<div v-if="currentState === STATES.ERROR" class="map-error">
-			<!-- TODO: translations -->
 			<p class="map-error-message">
-				Unable to load map
+				{{ t('map_async.load_error.message') }}
 			</p>
 		</div>
 
@@ -82,6 +85,7 @@ onMounted(loadMap);
 		<component
 			:is="mapComponent"
 			v-else
+			:single-feature-type="singleFeatureType"
 			:feature-collection="featureCollectionAndProps.featureCollection"
 			:mode="mode"
 			:ordered-extra-props="featureCollectionAndProps.orderedExtraPropsMap"

@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import { SINGLE_FEATURE_TYPES } from '@/components/common/map/getModeConfig.ts';
 import ValidationMessage from '@/components/common/ValidationMessage.vue';
 import ControlText from '@/components/form-elements/ControlText.vue';
 import InputGeopoint from '@/components/form-elements/input/geopoint/InputGeopoint.vue';
 import InputGeopointWithMap from '@/components/form-elements/input/InputGeopointWithMap.vue';
 import InputDate from '@/components/form-elements/input/InputDate.vue';
+import InputDateTime from '@/components/form-elements/input/InputDateTime.vue';
 import InputDecimal from '@/components/form-elements/input/InputDecimal.vue';
+import InputGeoMultiPoint from '@/components/form-elements/input/InputGeoMultiPoint.vue';
 import InputInt from '@/components/form-elements/input/InputInt.vue';
 import InputNumbersAppearance from '@/components/form-elements/input/InputNumbersAppearance.vue';
 import InputText from '@/components/form-elements/input/InputText.vue';
+import InputTime from '@/components/form-elements/input/InputTime.vue';
 import { IS_FORM_EDIT_MODE } from '@/lib/constants/injection-keys.ts';
 import type { AnyInputNode } from '@getodk/xforms-engine';
 import { inject } from 'vue';
@@ -38,14 +42,26 @@ const isFormEditMode = inject(IS_FORM_EDIT_MODE);
 			<InputGeopointWithMap v-if="isFormEditMode || (node.appearances['placement-map'] || node.appearances.maps)" :question="node" />
 			<InputGeopoint v-else :question="node" />
 		</template>
+		<template v-else-if="node.valueType === 'geoshape'">
+			<InputGeoMultiPoint :question="node" :single-feature-type="SINGLE_FEATURE_TYPES.SHAPE" />
+		</template>
+		<template v-else-if="node.valueType === 'geotrace'">
+			<InputGeoMultiPoint :question="node" :single-feature-type="SINGLE_FEATURE_TYPES.TRACE" />
+		</template>
 		<template v-else-if="node.valueType === 'date'">
 			<InputDate :question="node" />
+		</template>
+		<template v-else-if="node.valueType === 'time'">
+			<InputTime :question="node" />
+		</template>
+		<template v-else-if="node.valueType === 'dateTime'">
+			<InputDateTime :question="node" />
 		</template>
 		<template v-else>
 			<InputText :node="node" />
 		</template>
 	</div>
-	<ValidationMessage :message="node.validationState.violation?.message.formatted" />
+	<ValidationMessage :violation="node.validationState.violation" />
 </template>
 
 <style scoped lang="scss">
@@ -73,7 +89,6 @@ const isFormEditMode = inject(IS_FORM_EDIT_MODE);
 		}
 
 		&:read-only {
-			cursor: not-allowed;
 			opacity: 1;
 			background-image: none;
 		}

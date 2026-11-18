@@ -1,57 +1,93 @@
+/**
+ * IMPORTANT: OpenLayers and MapBlock are not statically imported here to enable bundling them into a separate chunk.
+ * This prevents unnecessary bloat in the main application bundle, reducing initial load times and improving performance.
+ */
+
 export const MODES = {
 	SELECT: 'select', // Used in Select one from map question type
 	LOCATION: 'location', // Used in Geopoint with "maps" appearance
 	PLACEMENT: 'placement', // Used in Geopoint with "placement-map" appearance
+	DRAW: 'draw', // Used in Geoshape and Geotrace question types
 } as const;
 export type Mode = (typeof MODES)[keyof typeof MODES];
+
+// Used when loading a single feature from the map.
+export const SINGLE_FEATURE_TYPES = {
+	POINT: 'point',
+	SHAPE: 'shape',
+	TRACE: 'trace',
+} as const;
+export type SingleFeatureType = (typeof SINGLE_FEATURE_TYPES)[keyof typeof SINGLE_FEATURE_TYPES];
+
+export interface ModeCapabilities {
+	canDeleteFeature: boolean;
+	canLoadMultiFeatures: boolean;
+	canRemoveCurrentLocation: boolean;
+	canSaveCurrentLocation: boolean;
+	canSelectFeatureOrVertex: boolean;
+	canShowMapOverlay: boolean;
+	canShowMapOverlayOnError: boolean;
+	canUndoLastChange: boolean;
+	canUpdateFeatureCoordinates: boolean;
+	canUpdateVertexCoordinates: boolean;
+	canViewProperties: boolean;
+}
 
 interface ModeConfig {
 	interactions: {
 		select: boolean;
-		longPress: boolean;
-		drag: boolean;
+		tapToAdd: boolean;
+		dragFeature: boolean;
+		dragFeatureAndVertex: boolean;
 	};
-	capabilities: {
-		canSaveCurrentLocation: boolean;
-		canRemoveCurrentLocation: boolean;
-		canLoadMultiFeatures: boolean;
-		canViewProperties: boolean;
-		canShowMapOverlay: boolean;
-		canShowMapOverlayOnError: boolean;
-	};
+	capabilities: ModeCapabilities;
 }
 
 export const getModeConfig = (mode: Mode): ModeConfig => {
+	// Default, everything turned off.
+	const defaultConfig = {
+		interactions: {
+			select: false,
+			tapToAdd: false,
+			dragFeature: false,
+			dragFeatureAndVertex: false,
+		},
+		capabilities: {
+			canDeleteFeature: false,
+			canLoadMultiFeatures: false,
+			canRemoveCurrentLocation: false,
+			canSaveCurrentLocation: false,
+			canSelectFeatureOrVertex: false,
+			canShowMapOverlay: false,
+			canShowMapOverlayOnError: false,
+			canUndoLastChange: false,
+			canUpdateFeatureCoordinates: false,
+			canUpdateVertexCoordinates: false,
+			canViewProperties: false,
+		},
+	} as const;
+
 	if (mode === MODES.SELECT) {
 		return {
 			interactions: {
+				...defaultConfig.interactions,
 				select: true,
-				longPress: false,
-				drag: false,
 			},
 			capabilities: {
-				canSaveCurrentLocation: false,
-				canRemoveCurrentLocation: false,
+				...defaultConfig.capabilities,
 				canLoadMultiFeatures: true,
 				canViewProperties: true,
-				canShowMapOverlay: false,
-				canShowMapOverlayOnError: false,
 			},
 		};
 	}
 
 	if (mode === MODES.LOCATION) {
 		return {
-			interactions: {
-				select: false,
-				longPress: false,
-				drag: false,
-			},
+			interactions: { ...defaultConfig.interactions },
 			capabilities: {
-				canSaveCurrentLocation: true,
+				...defaultConfig.capabilities,
 				canRemoveCurrentLocation: true,
-				canLoadMultiFeatures: false,
-				canViewProperties: false,
+				canSaveCurrentLocation: true,
 				canShowMapOverlay: true,
 				canShowMapOverlayOnError: true,
 			},
@@ -61,35 +97,36 @@ export const getModeConfig = (mode: Mode): ModeConfig => {
 	if (mode === MODES.PLACEMENT) {
 		return {
 			interactions: {
-				select: false,
-				longPress: true,
-				drag: true,
+				...defaultConfig.interactions,
+				tapToAdd: true,
+				dragFeature: true,
 			},
 			capabilities: {
-				canSaveCurrentLocation: true,
+				...defaultConfig.capabilities,
 				canRemoveCurrentLocation: true,
-				canLoadMultiFeatures: false,
-				canViewProperties: false,
-				canShowMapOverlay: true,
-				canShowMapOverlayOnError: false,
+				canSaveCurrentLocation: false,
 			},
 		};
 	}
 
-	// Default, everything turned off.
-	return {
-		interactions: {
-			select: false,
-			longPress: false,
-			drag: false,
-		},
-		capabilities: {
-			canSaveCurrentLocation: false,
-			canRemoveCurrentLocation: false,
-			canLoadMultiFeatures: false,
-			canViewProperties: false,
-			canShowMapOverlay: false,
-			canShowMapOverlayOnError: false,
-		},
-	};
+	if (mode === MODES.DRAW) {
+		return {
+			interactions: {
+				...defaultConfig.interactions,
+				select: true,
+				tapToAdd: true,
+				dragFeatureAndVertex: true,
+			},
+			capabilities: {
+				...defaultConfig.capabilities,
+				canDeleteFeature: true,
+				canSelectFeatureOrVertex: true,
+				canUndoLastChange: true,
+				canUpdateFeatureCoordinates: true,
+				canUpdateVertexCoordinates: true,
+			},
+		};
+	}
+
+	return defaultConfig;
 };

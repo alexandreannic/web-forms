@@ -1,5 +1,148 @@
 # @getodk/web-forms
 
+## 0.24.0
+
+### Minor Changes
+
+- 86a54ab: Editing submissions no longer blocks until attachments have been downloaded
+- 7ac5a19: Add support to datetime question type.
+- a64d092: Add support for "month-year" and "year" date question type appearances.
+- 500c8b2: Adds translation support.
+- 024287c: Moved monorepo tree-sitter-xpath into separate repo
+
+### Patch Changes
+
+- 9ac1901: Fixed numeric inputs to update the UI when setvalue actions trigger
+- c6856c5: Adjust the position of the media preview clear button.
+- 4fc0e56: Fixed setvalue not firing when the field becomes relevant
+
+## 0.23.1
+
+### Patch Changes
+
+- 8f1865c: Fixed images not allowed in file uploads
+
+## 0.23.0
+
+### Minor Changes
+
+- 2eccd28: Added support for the file, audio, and video upload types, and implemented drag and drop for uploads
+
+### Patch Changes
+
+- 1795a20: Fixed csv parsing to allow files with single column
+- 9818208: Fixed deviceid format to be shorter and more consistent with other clients
+- dabf273: Changed the map tooltips to a dialog that explains the actions.
+- 7b47bb1: Fixed a bug with markdown rendering outputs with empty values
+
+## 0.22.0
+
+### Minor Changes
+
+- b454f1f: Added support for max-pixels parameter to scale down image files before upload
+- 9df487b: Improved styling for disabled inputs to reduce confusion
+- 361de3e: Added support for 'rating' appearance to range question types
+
+### Patch Changes
+
+- ffad6c4: Allow text selection in properties dialog and status bar
+- e9f4e28: Fixed markdown to support computed link urls
+- 5a9faa8: Fixed bug where unknown mimetype on an attachment would error when loading a form
+- b83577f: Fix markdown to preserve line breaks
+- d8985e7: Fix the display of the error banner on top of the map overlay.
+
+## 0.21.0
+
+### Minor Changes
+
+- 965f6a9: Prevent displaying groups or repeats without relevant questions.
+
+### Patch Changes
+
+- 72bac16: Fixed markdown parser to ignore single labels that start with numbers instead of turning them into ordered lists
+- 9262fd9: Add div to sanitizer allowlist to preserve inline styles
+- 53e60da: Handle last-saved virtual secondary instance gracefully pending full implementation later
+- aa8090a: Fixes integer and range codecs to not throw errors when given invalid data
+- 14d6c9a: Fixed markdown to not interpret leading whitespace as a code block
+
+## 0.20.0
+
+### Minor Changes
+
+- 90e5a03: Adds time question type
+
+### Patch Changes
+
+- 240a019: Fixes load submission data in maps
+- 716bc51: Exclude demo images from core library bundle.
+- f382254: Fixed a bug where editing forms with repeat counts caused odk-new-repeat events to fire and overwrite user entered values
+- 12f943c: Prevents showing errors when starting new submissions
+- fdc8b0a: Fixes spacing of elements in the map's status bar
+- b2b6541: Prevents autofill in masked inputs and fixes long-form titles
+- 507344e: Decimals and geopoint values are now serialized with a minimum of one digit after the decimal point
+
+## 0.19.0
+
+### Minor Changes
+
+- 6bc1715: Improve map full-screen UX on mobile
+- 8f49cfa: Adds geofence xpath function
+- 4346971: Adds support for Geoshape and Geotrace.
+- 6f682f3: Remove long-press interactions in maps
+- def68e1: Update the current location indicator for maps
+- 30a6a7c: Adds unlimited undo history for map interactions
+- dc089de: Adds support for labels with audio and video
+- a8f37a8: Remove “Get location” overlay from geopoint with placement-map
+- e7fe47a: Remove the save button in geopoint with maps and placement-map appearances
+- 859699c: Add support for the masked appearance
+- 126e11d: Adds support for setgeopoint
+- 653fb7f: Adds support for editing the coordinates in geoshape and geotrace question types.
+
+### Patch Changes
+
+- 72a4961: Allow for multiple setvalue actions to reference the same element
+- 2276870: Removes temporal-polyfill from xpath bundle
+- a3839c1: Fixes a range of memory leaks when resetting form instances
+- da6dc94: Improves the UIUX of map status bar and fit to feature
+- b6ed538: Parsing external instance csvs should be permissive of empty rows
+- cd382fb: Set attribute value to instance value when editing submission
+- 031d0d1: Adds a generated ID to markdown nodes to use as the key in vue loops
+- c44525a: Fixed xforms-value-changed firing when loading submission for edit
+- 3e695c7: Prevent background scroll and browser zooming in full-screen map
+- ad6d0ba: Fixes odk-instance-first-load so it doesn't run on add repeat
+- 14b65e4: Defer evaluation of translation elements to improve performance
+- 265b8c4: Fix micro-panning interference, optimize full-screen UI and location tracking
+- cc95fd2: Hide Entity special properties from the maps property dialog
+- d1811f2: Fixes preload bindings so they only set the value on first load
+
+## 0.18.2
+
+### Patch Changes
+
+- f5b706e: Fixes the xpath traversal code to support dynamic attributes
+- 7908b30: Fixes actions so they are no longer reactive to model updates
+- 40ea005: Fix Attributes to have the correct contextNode so `current()` works as expected
+- 37015de: Fixes missing whitespace in panel headers
+
+## 0.18.1
+
+### Patch Changes
+
+- 9252e91: Fix form reset to set preload parameters correctly
+
+## 0.18.0
+
+### Minor Changes
+
+- 4025b67: Use Geopoint's placement mode when editing submissions.
+- bac8412: Add support for all jr:preload options
+- 6da0c6c: Add support for setvalue action and odk-instance-first-load, odk-new-repeat, xforms-value-changed events
+- 79a21e4: Adds support for Geopoint with "maps" and "placement-map" appearances.
+
+### Patch Changes
+
+- 0be7d7c: Upgrade dependencies
+
 ## 0.17.0
 
 ### Minor Changes

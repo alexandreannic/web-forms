@@ -17,9 +17,11 @@ To use this library in a Vue.js application:
     :missing-resource-behavior="missingBehavior"
     :submission-max-size="5242880"  <!-- 5MB -->
     :edit-instance="editOptions"
+    :preload-properties="preloadProperties"
+    :track-device="true"
     @submit="handleSubmit"
     @submit-chunked="handleChunkedSubmit"
-  />
+/>
 ```
 
 ### Plugin
@@ -35,11 +37,14 @@ app.use(WebFormsPlugin);
 
 The `<OdkWebForm>` component accepts the following props:
 
-- `formXml` (`string`, required): The XML of the ODK XForm to be rendered
-- `fetchFormAttachment` (`FetchFormAttachment`, required): Function to fetch form attachments
-- `missingResourceBehavior` (`MissingResourceBehavior`, optional): Defines behavior when resources are missing
-- `submissionMaxSize` (`number`, optional): Maximum size for chunked submissions. Required when subscribing to `submitChunked` event
-- `editInstance` (`EditInstanceOptions`, optional): Options to resolve and load instance and attachment resources for editing
+- `formXml` (`string`, required): The XML of the ODK XForm to be rendered.
+- `fetchFormAttachment` (`FetchFormAttachment`, required): Function to fetch form attachments.
+- `missingResourceBehavior` (`MissingResourceBehavior`, optional): Defines behavior when resources are missing.
+- `submissionMaxSize` (`number`, optional): Maximum size for chunked submissions. Required when subscribing to `submitChunked` event.
+- `attachmentMaxSize` (`number`, optional, defaults to 100MB): Maximum size for submission attachments in bytes.
+- `editInstance` (`EditInstanceOptions`, optional): Options to resolve and load instance and attachment resources for editing.
+- `preloadProperties` (`PreloadProperties`, optional): Properties to make available for binding in the form using jr:preload.
+- `trackDevice` (`boolean`, optional, defaults to `false`): If `true`, generates a unique identifier for this device and stores it in `localstorage` for use in subsequent submissions. Ignored if `preloadProperties.deviceID` is given.
 
 ### Events (`OdkWebFormEmits`)
 
@@ -60,7 +65,7 @@ We will eventually publish a framework-agnostic custom element.
 To run in development, run this command at the monorepo root:
 
 ```sh
-yarn workspace @getodk/web-forms dev
+npm run dev -w=packages/web-forms
 ```
 
 Individual test environments, and their corresponding watch modes, also have separate commands which can be found in [`package.json`](./package.json).

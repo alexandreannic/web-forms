@@ -1,6 +1,6 @@
 import { OPENROSA_XFORMS_NAMESPACE_URI } from '@getodk/common/constants/xmlns.ts';
 import { UnreachableError } from '@getodk/common/lib/error/UnreachableError.ts';
-import type { XFormsElement } from '@getodk/common/test/fixtures/xform-dsl/XFormsElement.ts';
+import type { XFormsElement } from '@getodk/common/test-utils/xform-dsl/XFormsElement.ts';
 import {
 	bind,
 	body,
@@ -14,7 +14,7 @@ import {
 	repeat,
 	t,
 	title,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import type {
 	InstanceData,
 	InstanceFile,
@@ -42,7 +42,7 @@ describe.each<InstanceRoundTripCase>([
 	const scenarioFromCurrentInstanceState = async (scenario: Scenario): Promise<Scenario> => {
 		switch (initializationMode) {
 			case 'edit':
-				return scenario.proposed_editCurrentInstanceState();
+				return scenario.editCurrentInstance();
 
 			case 'restore':
 				return scenario.proposed_serializeAndRestoreInstanceState();
@@ -812,7 +812,7 @@ describe.each<InstanceRoundTripCase>([
 				readonly inner3: ComparableAnswer;
 			}
 
-			const NAN_ANSWER = stringAnswer(String(NaN));
+			const NAN_ANSWER = stringAnswer('');
 
 			interface MissingRepeatInstanceInputCase {
 				readonly detail: string;

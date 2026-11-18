@@ -21,6 +21,12 @@ const collectInstanceAttachmentFiles = (attachments: InstanceAttachmentsState): 
 			return null;
 		}
 
+		const state = attachment.getState();
+		if (!state.dirty) {
+			// File not set by client. During editing this means it's unchanged and we don't need to upload it again.
+			return null;
+		}
+
 		return attachment.getValue();
 	});
 
@@ -208,6 +214,7 @@ export const prepareInstancePayload = <PayloadType extends InstancePayloadType>(
 	instanceRoot: ClientReactiveSerializableInstance,
 	options: PrepareInstancePayloadOptions<PayloadType>
 ): InstancePayload<PayloadType> => {
+	instanceRoot.root.parent.model.triggerXformsRevalidateListeners();
 	const validation = validateInstance(instanceRoot);
 	const submissionMeta = instanceRoot.definition.submission;
 	const instanceFile = new InstanceFile(instanceRoot);

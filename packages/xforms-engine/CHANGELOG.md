@@ -1,5 +1,111 @@
 # @getodk/xforms-engine
 
+## 0.22.0
+
+### Minor Changes
+
+- 86a54ab: Editing submissions no longer blocks until attachments have been downloaded
+- 7ac5a19: Add support to datetime question type.
+- 500c8b2: Adds translation support.
+
+### Patch Changes
+
+- 4fc0e56: Fixed setvalue not firing when the field becomes relevant
+
+## 0.21.1
+
+### Patch Changes
+
+- 8f1865c: Fixed images not allowed in file uploads
+
+## 0.21.0
+
+### Minor Changes
+
+- 2eccd28: Added support for the file, audio, and video upload types, and implemented drag and drop for uploads
+
+### Patch Changes
+
+- 1795a20: Fixed csv parsing to allow files with single column
+- 7b47bb1: Fixed a bug with markdown rendering outputs with empty values
+
+## 0.20.0
+
+### Minor Changes
+
+- b454f1f: Added support for max-pixels parameter to scale down image files before upload
+
+### Patch Changes
+
+- e9f4e28: Fixed markdown to support computed link urls
+- 5a9faa8: Fixed bug where unknown mimetype on an attachment would error when loading a form
+- b83577f: Fix markdown to preserve line breaks
+
+## 0.19.0
+
+### Minor Changes
+
+- 965f6a9: Prevent displaying groups or repeats without relevant questions.
+
+### Patch Changes
+
+- 72bac16: Fixed markdown parser to ignore single labels that start with numbers instead of turning them into ordered lists
+- 53e60da: Handle last-saved virtual secondary instance gracefully pending full implementation later
+- aa8090a: Fixes integer and range codecs to not throw errors when given invalid data
+- 14d6c9a: Fixed markdown to not interpret leading whitespace as a code block
+
+## 0.18.0
+
+### Minor Changes
+
+- 90e5a03: Adds time question type
+
+### Patch Changes
+
+- f382254: Fixed a bug where editing forms with repeat counts caused odk-new-repeat events to fire and overwrite user entered values
+- 507344e: Decimals and geopoint values are now serialized with a minimum of one digit after the decimal point
+
+## 0.17.0
+
+### Minor Changes
+
+- 8f49cfa: Adds geofence xpath function
+- 4346971: Adds support for Geoshape and Geotrace.
+- 126e11d: Adds support for setgeopoint
+
+### Patch Changes
+
+- 72a4961: Allow for multiple setvalue actions to reference the same element
+- 2276870: Removes temporal-polyfill from xpath bundle
+- a3839c1: Fixes a range of memory leaks when resetting form instances
+- b6ed538: Parsing external instance csvs should be permissive of empty rows
+- cd382fb: Set attribute value to instance value when editing submission
+- 031d0d1: Adds a generated ID to markdown nodes to use as the key in vue loops
+- c44525a: Fixed xforms-value-changed firing when loading submission for edit
+- ad6d0ba: Fixes odk-instance-first-load so it doesn't run on add repeat
+- 14b65e4: Defer evaluation of translation elements to improve performance
+- d1811f2: Fixes preload bindings so they only set the value on first load
+
+## 0.16.1
+
+### Patch Changes
+
+- f5b706e: Fixes the xpath traversal code to support dynamic attributes
+- 7908b30: Fixes actions so they are no longer reactive to model updates
+- 40ea005: Fix Attributes to have the correct contextNode so `current()` works as expected
+
+## 0.16.0
+
+### Minor Changes
+
+- bac8412: Add support for all jr:preload options
+- 6da0c6c: Add support for setvalue action and odk-instance-first-load, odk-new-repeat, xforms-value-changed events
+- 3ec1d26: Support attributes on leaf nodes
+
+### Patch Changes
+
+- 0be7d7c: Upgrade dependencies
+
 ## 0.15.0
 
 ### Minor Changes

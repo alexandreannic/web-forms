@@ -1,17 +1,18 @@
+import { toGeoJsonCoordinateArray } from '@/components/common/map/geojson-parsers.ts';
+import { createCurrentLocationStyle } from '@/components/common/map/map-styles.ts';
+import type { TimerID } from '@getodk/common/types/timers.ts';
 import { Map, type View } from 'ol';
 import type { Coordinate } from 'ol/coordinate';
 import { easeOut } from 'ol/easing';
-import { getCenter } from 'ol/extent';
+import { getCenter, isEmpty as isExtendEmpty, type Extent } from 'ol/extent';
 import Feature from 'ol/Feature';
 import { Point } from 'ol/geom';
 import VectorLayer from 'ol/layer/Vector';
 import { fromLonLat, toLonLat } from 'ol/proj';
+import type { Size } from 'ol/size';
 import VectorSource from 'ol/source/Vector';
 import { getDistance } from 'ol/sphere';
-import { Icon, Style } from 'ol/style';
 import { shallowRef, watch } from 'vue';
-import type { TimerID } from '@getodk/common/types/timers.ts';
-import locationIcon from '@/assets/images/location-icon.svg';
 
 type LocationWatchID = ReturnType<typeof navigator.geolocation.watchPosition>;
 
@@ -24,19 +25,21 @@ export const DISTANCE_CATEGORY = {
 
 export type DistanceCategory = (typeof DISTANCE_CATEGORY)[keyof typeof DISTANCE_CATEGORY];
 
-interface BrowserLocation
-	extends Pick<GeolocationCoordinates, 'accuracy' | 'altitude' | 'latitude' | 'longitude'> {}
+interface BrowserLocation extends Pick<
+	GeolocationCoordinates,
+	'accuracy' | 'altitude' | 'latitude' | 'longitude'
+> {}
 
 export interface UseMapViewControls {
 	centerFeatureLocation: (feature: Feature) => void;
 	centerFullWorldView: () => void;
 	fitToAllFeatures: (featureSource: VectorSource) => void;
 	getUserCurrentLocation: () => BrowserLocation | undefined;
-	hasCurrentLocationFeature: () => boolean;
 	stopWatchingCurrentLocation: () => void;
 	watchCurrentLocation: (onSuccess: () => void, onError: () => void) => void;
 }
 
+export const COORDINATE_LAYOUT_XYZM = 'XYZM';
 export const DEFAULT_VIEW_CENTER = [0, 0];
 export const MIN_ZOOM = 2;
 const MAX_ZOOM = 19;
@@ -44,6 +47,7 @@ const INTERMEDIATE_ZOOM = 4;
 const LONG_DISTANCE_THRESHOLD_METERS = 50 * 1000;
 const SHORT_DISTANCE_THRESHOLD_METERS = 1000;
 const GEOLOCATION_TIMEOUT_MS = 30 * 1000; // Field environments need more time and reduces false “no signal” warnings.
+const GEOLOCATION_CACHE_MS = 1000; // Reduces map accuracy and location indicator refreshes.
 const ANIMATION_TIME_MS = 1000;
 const DEBOUNCE_DELAY_MS = 500;
 const SMALL_DEVICE_WIDTH = 576;
@@ -57,7 +61,7 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 	const currentLocationSource = new VectorSource();
 	const currentLocationLayer = new VectorLayer({
 		source: currentLocationSource,
-		style: new Style({ image: new Icon({ src: locationIcon }) }),
+		style: createCurrentLocationStyle(mapInstance),
 	});
 	mapInstance.addLayer(currentLocationLayer);
 
@@ -67,20 +71,21 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 		}
 
 		const extent = source.getExtent();
-		if (!extent?.length) {
+		if (isExtendEmpty(extent)) {
 			return;
 		}
 
 		const view = mapInstance.getView();
 		const center = getCenter(extent);
 		const distance = evaluateDistance(view, center);
+		const padding = [70, 70, 70, 70];
 		if (distance === DISTANCE_CATEGORY.LONG) {
 			view.animate(
 				{ zoom: INTERMEDIATE_ZOOM, duration: ANIMATION_TIME_MS, easing: easeOut },
 				{ center: center, duration: ANIMATION_TIME_MS, easing: easeOut },
 				() => {
 					view.fit(extent, {
-						padding: [50, 50, 50, 50],
+						padding,
 						duration: 0,
 						maxZoom: MAX_ZOOM,
 					});
@@ -90,7 +95,7 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 		}
 
 		view.fit(extent, {
-			padding: [50, 50, 50, 50],
+			padding,
 			duration: getZoomDuration(distance),
 			maxZoom: MAX_ZOOM,
 		});
@@ -101,6 +106,9 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 			clearTimeout(debounceTimer.value);
 		}
 		debounceTimer.value = setTimeout(() => {
+			if (!watchLocation.value) {
+				return;
+			}
 			const { latitude, longitude, altitude, accuracy } = position.coords;
 			userCurrentLocation.value = { latitude, longitude, altitude, accuracy };
 			onSuccess();
@@ -131,41 +139,62 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 		watchLocation.value = navigator.geolocation.watchPosition(
 			(position) => onGeolocationSuccess(position, onSuccess),
 			() => onGeolocationError(onError),
-			{ enableHighAccuracy: true, timeout: GEOLOCATION_TIMEOUT_MS }
+			{
+				enableHighAccuracy: true,
+				timeout: GEOLOCATION_TIMEOUT_MS,
+				maximumAge: GEOLOCATION_CACHE_MS,
+			}
 		);
 	};
 
 	const stopWatchingCurrentLocation = () => {
-		currentLocationSource.clear(true);
-		userCurrentLocation.value = undefined;
+		if (debounceTimer.value) {
+			clearTimeout(debounceTimer.value);
+			debounceTimer.value = undefined;
+		}
 
 		if (watchLocation.value) {
 			navigator.geolocation.clearWatch(watchLocation.value);
 			watchLocation.value = undefined;
 		}
+
+		userCurrentLocation.value = undefined;
+		currentLocationSource.clear(true);
+	};
+
+	const resolveTargetViewSettings = (extent: Extent, view: View, size: Size) => {
+		const ZOOM_BUFFER = 1;
+		const currentResolution = view.getResolutionForExtent(extent, size);
+		const currentZoom = view.getZoomForResolution(currentResolution) ?? 0;
+		const targetZoom = currentZoom - ZOOM_BUFFER; // For better aesthetics.
+		return targetZoom > 1 ? Math.min(targetZoom, MAX_ZOOM) : MAX_ZOOM;
 	};
 
 	const centerFeatureLocation = (feature: Feature): void => {
 		const geometry = feature.getGeometry();
 		const view = mapInstance.getView();
-		const mapWidth = mapInstance.getSize()?.[0];
-		if (!geometry || !view || mapWidth == null) {
+		const size = mapInstance.getSize();
+		const extent = geometry?.getExtent() ?? [];
+		if (!geometry || !view || !size || isExtendEmpty(extent)) {
 			return;
 		}
 
+		const mapWidth = size[0] ?? 0;
 		const pixelOffsetY = mapWidth < SMALL_DEVICE_WIDTH ? -130 : 0;
 		const pixelOffsetX = mapWidth < SMALL_DEVICE_WIDTH ? 0 : -70;
 
-		const zoomResolution = view.getResolution() ?? 1;
-		const xOffsetInMapUnits = -pixelOffsetX * zoomResolution;
-		const yOffsetInMapUnits = -pixelOffsetY * zoomResolution;
+		const zoom = resolveTargetViewSettings(extent, view, size);
+		const resolution = view.getResolutionForZoom(zoom);
+
+		const xOffsetInMapUnits = -pixelOffsetX * resolution;
+		const yOffsetInMapUnits = -pixelOffsetY * resolution;
 
 		// Turning angles into usable numbers
 		const rotation = view.getRotation();
 		const cosRotation = Math.cos(rotation);
 		const sinRotation = Math.sin(rotation);
 
-		const [featureCenterLong, featureCenterLat] = getCenter(geometry.getExtent());
+		const [featureCenterLong, featureCenterLat] = getCenter(extent);
 		if (!featureCenterLong || !featureCenterLat) {
 			return;
 		}
@@ -174,8 +203,6 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 			featureCenterLat - xOffsetInMapUnits * sinRotation - yOffsetInMapUnits * cosRotation,
 		];
 
-		const targetZoom = view.getZoomForResolution(zoomResolution);
-		const zoom = targetZoom ? Math.min(targetZoom, MAX_ZOOM) : MAX_ZOOM;
 		transitionToLocation(targetCoordinates, zoom);
 	};
 
@@ -243,8 +270,18 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 				return;
 			}
 
-			const parsedCoords = fromLonLat([newLocation.longitude, newLocation.latitude]);
-			userCurrentLocationFeature.value = new Feature({ geometry: new Point(parsedCoords) });
+			const coords = toGeoJsonCoordinateArray(
+				newLocation.longitude,
+				newLocation.latitude,
+				newLocation.altitude,
+				newLocation.accuracy
+			);
+			const parsedCoords = fromLonLat(coords);
+			userCurrentLocationFeature.value = new Feature({
+				geometry: new Point(parsedCoords, COORDINATE_LAYOUT_XYZM),
+			});
+			userCurrentLocationFeature.value.set('accuracy', newLocation.accuracy);
+
 			currentLocationSource.addFeature(userCurrentLocationFeature.value);
 
 			if (canCenterView) {
@@ -258,7 +295,6 @@ export function useMapViewControls(mapInstance: Map): UseMapViewControls {
 		centerFullWorldView: () => transitionToLocation(DEFAULT_VIEW_CENTER, MIN_ZOOM),
 		fitToAllFeatures,
 		getUserCurrentLocation: () => userCurrentLocation.value,
-		hasCurrentLocationFeature: () => !!userCurrentLocationFeature.value,
 		stopWatchingCurrentLocation,
 		watchCurrentLocation,
 	};

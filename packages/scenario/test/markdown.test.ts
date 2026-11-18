@@ -10,7 +10,7 @@ import {
 	select1,
 	t,
 	title,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import { describe, expect, it } from 'vitest';
 import { Scenario } from '../src/jr/Scenario.ts';
 
@@ -189,6 +189,36 @@ describe('Markdown', () => {
 			];
 			await run(given, expected);
 		});
+
+		describe('ordered lists with a single item', () => {
+			it('ignores single child at the top level', async () => {
+				const given = '3. third question';
+				const expected = [{ value: '3. third question' }];
+				await run(given, expected);
+			});
+
+			it('parses when sibling', async () => {
+				const given = `### My section
+
+3. third question`;
+				const expected = [
+					{
+						elementName: 'h3',
+						children: [{ value: 'My section' }],
+					},
+					{
+						elementName: 'ol',
+						children: [
+							{
+								elementName: 'li',
+								children: [{ elementName: 'p', children: [{ value: 'third question' }] }],
+							},
+						],
+					},
+				];
+				await run(given, expected);
+			});
+		});
 	});
 
 	describe('should handle html', () => {
@@ -243,7 +273,11 @@ describe('Markdown', () => {
 				const given = `hello
 single line break`;
 
-				await run(given, [{ value: 'hello\nsingle line break' }]);
+				await run(given, [
+					{ value: 'hello' },
+					{ elementName: 'br' },
+					{ value: 'single line break' },
+				]);
 			});
 
 			it('double', async () => {
@@ -275,6 +309,102 @@ double line break`;
 			},
 			{ value: ' back to normal' },
 		]);
+	});
+
+	describe('links', () => {
+		it('should handle links', async () => {
+			await run('[get odk](http://www.getodk.org)', [
+				{ elementName: 'a', url: 'http://www.getodk.org', children: [{ value: 'get odk' }] },
+			]);
+		});
+
+		it('should handle tel protocol', async () => {
+			await run('[call me](tel:+123456789)', [
+				{ elementName: 'a', url: 'tel:+123456789', children: [{ value: 'call me' }] },
+			]);
+		});
+
+		it('should handle links with outputs', async () => {
+			const outputScenario = async () => {
+				return await Scenario.init(
+					'markdown',
+					html(
+						head(
+							title('markdown'),
+							model(
+								mainInstance(t('data id="markdown"', t('url'))),
+								bind('/data/url').type('string')
+							)
+						),
+						body(
+							input(
+								'/data/url',
+								t('label', '[<output value="/data/url" />](<output value="/data/url" />)')
+							)
+						)
+					)
+				);
+			};
+			const scenario = await outputScenario();
+			scenario.next('/data/url');
+			scenario.answer('https://www.getodk.org');
+			const label = scenario.getQuestionLabel({ assertCurrentReference: '/data/url' }).formatted;
+			expect(label).toMatchObject([
+				{
+					elementName: 'a',
+					url: 'https://www.getodk.org',
+					children: [{ elementName: 'span', children: [{ value: 'https://www.getodk.org' }] }],
+				},
+			]);
+		});
+
+		it('should handle tel protocol with outputs', async () => {
+			const outputScenario = async () => {
+				return await Scenario.init(
+					'markdown',
+					html(
+						head(
+							title('markdown'),
+							model(
+								mainInstance(t('data id="markdown"', t('phone'))),
+								bind('/data/phone').type('string')
+							)
+						),
+						body(
+							input(
+								'/data/phone',
+								t('label', '[<output value="/data/phone" />](tel:<output value="/data/phone" />)')
+							)
+						)
+					)
+				);
+			};
+			const scenario = await outputScenario();
+			scenario.next('/data/phone');
+			scenario.answer('+55555555');
+			const label = scenario.getQuestionLabel({ assertCurrentReference: '/data/phone' }).formatted;
+			expect(label).toMatchObject([
+				{
+					elementName: 'a',
+					url: 'tel:+55555555',
+					children: [{ elementName: 'span', children: [{ value: '+55555555' }] }],
+				},
+			]);
+		});
+	});
+
+	describe('handle indented code without support code blocks', () => {
+		it('four spaces are replaced', async () => {
+			await run('    code block', [{ value: 'code block' }]);
+		});
+
+		it('many spaces are replaced', async () => {
+			await run('                       code block', [{ value: 'code block' }]);
+		});
+
+		it('tab is replaced', async () => {
+			await run('\tcode block', [{ value: 'code block' }]);
+		});
 	});
 
 	it('should work with translated text', async () => {
@@ -312,7 +442,9 @@ double line break`;
 	});
 
 	describe('should handle output elements', () => {
-		const outputScenario = async () => {
+		const outputScenario = async (
+			markdown = '**Dear <output value=" /data/name " />!** Welcome.'
+		) => {
 			return await Scenario.init(
 				'markdown',
 				html(
@@ -323,10 +455,7 @@ double line break`;
 								'itext',
 								t(
 									'translation lang="default"',
-									t(
-										'text id="/data/name:label"',
-										t('value', `**Dear <output value=" /data/name " />!** Welcome.`)
-									)
+									t('text id="/data/name:label"', t('value', markdown))
 								)
 							),
 							mainInstance(t('data id="markdown"', t('name'))),
@@ -353,6 +482,24 @@ double line break`;
 							children: [{ value: 'Alice' }],
 						},
 						{ value: '!' },
+					],
+				},
+				{ value: ' Welcome.' },
+			]);
+		});
+
+		it('style wraps empty output elements', async () => {
+			const scenario = await outputScenario('**<output value=" /data/name " />** Welcome.');
+			scenario.next('/data/name');
+			const label = scenario.getQuestionLabel({ assertCurrentReference: '/data/name' }).formatted;
+			expect(label).toMatchObject([
+				{
+					elementName: 'strong',
+					children: [
+						{
+							elementName: 'span',
+							children: [],
+						},
 					],
 				},
 				{ value: ' Welcome.' },

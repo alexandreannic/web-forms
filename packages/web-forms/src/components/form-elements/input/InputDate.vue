@@ -1,57 +1,72 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import DatePicker from 'primevue/datepicker';
-import type { DateInputNode } from '@getodk/xforms-engine';
 import { ISO_DATE_LIKE_PATTERN } from '@getodk/common/constants/datetime.ts';
+import type { DateInputNode } from '@getodk/xforms-engine';
+import DatePicker from 'primevue/datepicker';
+import { computed } from 'vue';
+import { useDateTimeInput } from './useDateTimeInput.ts';
 
-interface InputDateProps {
-	readonly question: DateInputNode;
-}
+const props = defineProps<{ readonly question: DateInputNode }>();
+const { localeDateFormat, getTemporalString } = useDateTimeInput();
 
-const props = defineProps<InputDateProps>();
+const isMonthYear = computed(() => props.question.appearances['month-year']);
+const isYearOnly = computed(() => props.question.appearances.year);
 
 const value = computed({
 	get: () => {
-		if (props.question.currentState.value == null) {
-			return null;
-		}
-
-		const temporalValue = props.question.currentState.value.toString();
-		if (!ISO_DATE_LIKE_PATTERN.test(temporalValue)) {
-			return null;
-		}
-
+		const temporalValue = getTemporalString(props.question.currentState.value, ISO_DATE_LIKE_PATTERN);
 		// Convert to ISO string (yyyy-mm-dd) and append time for start of day local
-		return new Date(temporalValue + 'T00:00:00');
+		return temporalValue === null ? null : new Date(temporalValue + 'T00:00:00');
 	},
 	set: (newDate) => {
+		if (newDate != null) {
+			if (isMonthYear.value || isYearOnly.value) {
+				newDate.setDate(1);
+			}
+
+			if (isYearOnly.value) {
+				newDate.setMonth(0);
+			}
+		}
 		props.question.setValue(newDate);
 	},
+});
+
+// PrimeVue has its date format convention, for example, 'yy' = 4-digit year
+const pickerConfig = computed(() => {
+	const hideTodayClass = 'hide-today-button';
+	if (isMonthYear.value) {
+		return {
+			view: 'month',
+			dateFormat: 'MM yy',
+			placeholder: 'mmm yyyy',
+			panelClass: hideTodayClass
+		};
+	}
+
+	if (isYearOnly.value) {
+		return { view: 'year', dateFormat: 'yy', placeholder: 'yyyy', panelClass: hideTodayClass };
+	}
+
+	return {
+		view: 'date',
+		dateFormat: undefined, // Fallback to PrimeVue locale default
+		placeholder: localeDateFormat.value,
+	};
 });
 
 const isDisabled = computed(() => props.question.currentState.readonly === true);
 </script>
 
 <template>
-	<DatePicker v-model="value" show-icon icon-display="input" show-button-bar :disabled="isDisabled" />
+	<DatePicker
+		v-model="value"
+		:view="pickerConfig.view"
+		:date-format="pickerConfig.dateFormat"
+		show-icon
+		icon-display="input"
+		:panel-class="pickerConfig.panelClass"
+		:placeholder="pickerConfig.placeholder"
+		show-button-bar
+		:disabled="isDisabled"
+	/>
 </template>
-
-<style lang="scss">
-.p-datepicker-title button {
-	font-size: var(--odk-hint-font-size);
-}
-
-.p-datepicker-input:disabled,
-.p-datepicker-input:disabled + .p-datepicker-input-icon-container {
-	cursor: not-allowed;
-}
-
-.p-datepicker .p-datepicker-input-icon-container {
-	top: 19px;
-
-	svg {
-		width: 20px;
-		height: 20px;
-	}
-}
-</style>

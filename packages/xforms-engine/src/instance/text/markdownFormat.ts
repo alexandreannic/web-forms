@@ -1,5 +1,6 @@
 import type { Heading, Literal, RootContent } from 'mdast';
 import { fromMarkdown } from 'mdast-util-from-markdown';
+import { newlineToBreak } from 'mdast-util-newline-to-break';
 import { type MarkdownNode, type StyleProperty } from '../../client';
 import type { TextChunk } from '../../client/TextRange.ts';
 import {
@@ -14,6 +15,7 @@ import {
 	Heading5,
 	Heading6,
 	Html,
+	LineBreak,
 	ListItem,
 	OrderedList,
 	Paragraph,
@@ -23,6 +25,8 @@ import {
 	UnorderedList,
 } from '../markdown/MarkdownNode.ts';
 
+const OUTPUT_STRING_REGEX = /`(--ODK-OUTPUT-STRING-[0-9]+--)`/g;
+const LEADING_WHITESPACE_REGEX = /^\s+/;
 const STYLE_PROPERTY_REGEX = /style\s*=\s*(?:'|")(.+)(?:'|")/i;
 const HTML_TAG_MAP = {
 	span: Span,
@@ -42,7 +46,7 @@ const SUPPORTED_HTML_TAGS = Object.entries(HTML_TAG_MAP).map(([tag, type]) => {
 	};
 });
 
-let outputStrings: Map<string, string>;
+const outputStrings = new Map<string, string>();
 
 function validateStyleProperty(name: string | undefined, value: string | undefined): boolean {
 	if (!name || !value) {
@@ -102,11 +106,14 @@ function mdastNodeToOdkMarkdown(tree: RootContent): MarkdownNode | undefined {
 	}
 	if (tree.type === 'text' || tree.type === 'inlineCode') {
 		const outputString = outputStrings.get(tree.value);
-		if (outputString) {
+		if (outputString != null) {
 			const children = toOdkMarkdown(outputString);
 			return new Span(children, undefined);
 		}
 		return new ChildMarkdownNode(tree.value);
+	}
+	if (tree.type === 'break') {
+		return new LineBreak();
 	}
 	if ('children' in tree) {
 		const children = mdastToOdkMarkdown(tree.children);
@@ -120,7 +127,10 @@ function mdastNodeToOdkMarkdown(tree: RootContent): MarkdownNode | undefined {
 			return new Emphasis(children);
 		}
 		if (tree.type === 'link') {
-			return new Anchor(children, tree.url);
+			const url = tree.url.replaceAll(OUTPUT_STRING_REGEX, (_, group: string) => {
+				return outputStrings.get(group) ?? '';
+			});
+			return new Anchor(children, url);
 		}
 		if (tree.type === 'list') {
 			if (tree.ordered) {
@@ -183,22 +193,36 @@ function mdastToOdkMarkdown(elements: RootContent[]): MarkdownNode[] {
 function escapeEditableChunks(chunks: readonly TextChunk[]) {
 	return chunks
 		.map((chunk, i) => {
-			const str = chunk.asString;
-			if (str && chunk.source === 'output') {
+			const str = chunk.asString.replace(LEADING_WHITESPACE_REGEX, ' ') ?? '';
+			if (chunk.source === 'output') {
 				// we need to process this separately otherwise user entered markup will
 				// interract with form markup in unexpected ways
 				const id = `--ODK-OUTPUT-STRING-${i}--`;
 				outputStrings.set(id, str);
 				return '`' + id + '`';
 			}
-			return str ?? '';
+			return str;
 		})
 		.join('');
 }
 
+function isSingleOrderedList(odk: MarkdownNode[]) {
+	return (
+		odk.length === 1 &&
+		odk[0]?.role === 'parent' &&
+		odk[0]?.elementName === 'ol' &&
+		odk[0].children.length === 1
+	);
+}
+
 function toOdkMarkdown(str: string): MarkdownNode[] {
 	const tree = fromMarkdown(str);
+	newlineToBreak(tree);
 	const odk = mdastToOdkMarkdown(tree.children);
+	if (isSingleOrderedList(odk)) {
+		// do not return a numbered list with only a single element - this is almost never what people expect
+		return [new ChildMarkdownNode(str)];
+	}
 	if (odk.length === 1 && odk[0]?.role === 'parent' && odk[0]?.elementName === 'p') {
 		// mdast tends to add too many paragraphs which if left in place, puts a block level
 		// element where it's not needed
@@ -208,7 +232,8 @@ function toOdkMarkdown(str: string): MarkdownNode[] {
 }
 
 export function format(chunks: readonly TextChunk[]): MarkdownNode[] {
-	outputStrings = new Map<string, string>();
 	const str = escapeEditableChunks(chunks);
-	return toOdkMarkdown(str);
+	const result = toOdkMarkdown(str);
+	outputStrings.clear();
+	return result;
 }

@@ -1,10 +1,8 @@
-import type { DeriveStaticVitestExpectExtension } from '@getodk/common/test/assertions/helpers.ts';
-import {
-	AsymmetricTypedExpectExtension,
-	extendExpect,
-} from '@getodk/common/test/assertions/helpers.ts';
 import type { RootNode } from '@getodk/xforms-engine';
 import { expect } from 'vitest';
+import { AsymmetricTypedExpectExtension } from '../vitest/AsymmetricTypedExpectExtension.ts';
+import { extendExpect } from '../vitest/extendExpect.ts';
+import type { DeriveStaticVitestExpectExtension } from '../vitest/shared-extension-types.ts';
 import { assertArrayOfStrings, assertRootNode, assertString } from './shared-type-assertions.ts';
 
 const hasClass = (node: RootNode, className: string): boolean => {
@@ -70,6 +68,5 @@ type BodyClassExtensions = typeof bodyClassesExtensions;
 declare module 'vitest' {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	interface Assertion<T = any> extends DeriveStaticVitestExpectExtension<BodyClassExtensions, T> {}
-	interface AsymmetricMatchersContaining
-		extends DeriveStaticVitestExpectExtension<BodyClassExtensions> {}
+	interface AsymmetricMatchersContaining extends DeriveStaticVitestExpectExtension<BodyClassExtensions> {}
 }

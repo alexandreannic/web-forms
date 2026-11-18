@@ -2,7 +2,9 @@
 import IconSVG from '@/components/common/IconSVG.vue';
 import { ODK_VALUE_PROPERTY } from '@/components/common/map/useMapBlock.ts';
 import Button from 'primevue/button';
-import { computed } from 'vue';
+import { TRANSLATE } from '@/lib/constants/injection-keys.ts';
+import type { Translate } from '@/lib/locale/useLocale.ts';
+import { computed, inject } from 'vue';
 
 const props = defineProps<{
 	reservedProps: Record<string, string> | undefined;
@@ -13,6 +15,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'save', 'discard']);
+
+const t: Translate = inject(TRANSLATE)!;
+
 const orderedProps = computed(() => {
 	const key = props.reservedProps?.[ODK_VALUE_PROPERTY];
 	if (key) {
@@ -32,8 +37,8 @@ const orderedProps = computed(() => {
 			</button>
 		</div>
 
-		<dl class="map-properties-content">
-			<div v-for="[key = '', value = ''] in orderedProps" :key="key" class="property-line">
+		<dl class="odk-form-list">
+			<div v-for="[key = '', value = ''] in orderedProps" :key="key" class="odk-form-list-item">
 				<dt>{{ key }}</dt><dd>{{ value }}</dd>
 			</div>
 		</dl>
@@ -41,13 +46,11 @@ const orderedProps = computed(() => {
 		<div class="map-properties-footer">
 			<Button v-if="isSavedFeatureSelected && canRemove" outlined severity="contrast" @click="emit('discard')">
 				<span>–</span>
-				<!-- TODO: translations -->
-				<span>Remove selection</span>
+				<span>{{ t('map_properties.remove_selection.label') }}</span>
 			</Button>
 			<Button v-if="!isSavedFeatureSelected && canSave" @click="emit('save')">
 				<IconSVG name="mdiCheckboxMarkedCircleOutline" size="sm" variant="inverted" />
-				<!-- TODO: translations -->
-				<span>Save selected</span>
+				<span>{{ t('map_properties.save_selected.label') }}</span>
 			</Button>
 		</div>
 	</div>
@@ -57,23 +60,18 @@ const orderedProps = computed(() => {
 @use 'primeflex/core/_variables.scss' as pf;
 
 .map-properties {
-	--odk-map-properties-spacing-lg: 20px;
-	--odk-map-properties-spacing-md: 10px;
-}
-
-.map-properties {
 	background: var(--odk-base-background-color);
 	position: absolute;
-	top: var(--odk-map-properties-spacing-md);
-	left: var(--odk-map-properties-spacing-md);
-	padding: var(--odk-map-properties-spacing-lg);
+	top: var(--odk-spacing-m);
+	left: var(--odk-spacing-m);
+	padding: var(--odk-spacing-xl);
 	border: 1px solid var(--odk-border-color);
 	border-radius: var(--odk-radius);
 	display: flex;
 	flex-direction: column;
-	gap: var(--odk-map-properties-spacing-md);
+	gap: var(--odk-spacing-m);
 	width: 360px;
-	max-height: 370px;
+	max-height: min(370px, 90vh);
 	box-shadow: 1px 2px 3px 0 rgba(0, 0, 0, 0.2);
 }
 
@@ -83,8 +81,10 @@ const orderedProps = computed(() => {
 	flex-wrap: nowrap;
 	justify-content: space-between;
 	align-items: flex-start;
-	gap: var(--odk-map-properties-spacing-md);
+	gap: var(--odk-spacing-m);
 	padding: 0;
+	-webkit-user-select: text;
+	user-select: text;
 
 	strong {
 		font-size: var(--odk-dialog-title-font-size);
@@ -93,19 +93,17 @@ const orderedProps = computed(() => {
 	.close-icon {
 		cursor: pointer;
 		margin-top: -12px;
-		padding: 5px 0;
+		padding: var(--odk-spacing-s) 0;
 		margin-right: -3px;
 	}
 }
 
-.map-properties-content {
+.odk-form-list {
 	flex-grow: 2;
-	overflow: auto;
-	margin: 0;
 
-	.property-line {
-		display: block;
-		padding: 15px 0;
+	.odk-form-list-item {
+		-webkit-user-select: text;
+		user-select: text;
 
 		dt,
 		dd {
@@ -115,11 +113,7 @@ const orderedProps = computed(() => {
 
 		dt:after {
 			content: ':';
-			margin-right: 5px;
-		}
-
-		&:not(:last-child) {
-			border-bottom: 1px solid var(--odk-border-color);
+			margin-right: var(--odk-spacing-s);
 		}
 	}
 }

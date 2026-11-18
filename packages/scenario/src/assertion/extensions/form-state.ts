@@ -1,11 +1,9 @@
 import { assertInstanceType } from '@getodk/common/lib/runtime-types/instance-predicates.ts';
-import type { DeriveStaticVitestExpectExtension } from '@getodk/common/test/assertions/helpers.ts';
-import {
-	ArbitraryConditionExpectExtension,
-	extendExpect,
-} from '@getodk/common/test/assertions/helpers.ts';
 import { expect } from 'vitest';
 import { JRFormDef } from '../../jr/form/JRFormDef.ts';
+import { ArbitraryConditionExpectExtension } from '../vitest/ArbitraryConditionExpectExtension.ts';
+import { extendExpect } from '../vitest/extendExpect.ts';
+import type { DeriveStaticVitestExpectExtension } from '../vitest/shared-extension-types.ts';
 
 type AssertJRFormDef = (value: unknown) => asserts value is JRFormDef;
 
@@ -44,6 +42,5 @@ type FormStateExtensions = typeof formStateExtensions;
 declare module 'vitest' {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	interface Assertion<T = any> extends DeriveStaticVitestExpectExtension<FormStateExtensions, T> {}
-	interface AsymmetricMatchersContaining
-		extends DeriveStaticVitestExpectExtension<FormStateExtensions> {}
+	interface AsymmetricMatchersContaining extends DeriveStaticVitestExpectExtension<FormStateExtensions> {}
 }

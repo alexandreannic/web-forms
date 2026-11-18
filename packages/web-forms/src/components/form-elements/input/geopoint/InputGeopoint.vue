@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import GeolocationFormattedValue from '@/components/common/GeolocationFormattedValue.vue';
 import IconSVG from '@/components/common/IconSVG.vue';
-import { QUESTION_HAS_ERROR } from '@/lib/constants/injection-keys.ts';
+import { TRANSLATE, QUESTION_HAS_ERROR } from '@/lib/constants/injection-keys.ts';
+import type { Translate } from '@/lib/locale/useLocale.ts';
 import { computed, type ComputedRef, inject, ref } from 'vue';
 import Button from 'primevue/button';
 import type { GeopointInputNode } from '@getodk/xforms-engine';
@@ -15,7 +17,6 @@ import {
 	type GeolocationRequestSuccess,
 } from './geolocation-request.ts';
 import { GeopointAccuracy } from './GeopointAccuracy.ts';
-import GeopointFormattedValue from '@/components/common/GeopointFormattedValue.vue';
 
 interface InputGeopointProps {
 	readonly question: GeopointInputNode;
@@ -23,6 +24,7 @@ interface InputGeopointProps {
 
 const props = defineProps<InputGeopointProps>();
 
+const t: Translate = inject(TRANSLATE)!;
 const showErrorStyle = inject<ComputedRef<boolean>>(
 	QUESTION_HAS_ERROR,
 	computed(() => false)
@@ -126,8 +128,7 @@ const onSave = (saved: GeolocationRequestSuccess) => {
 			@click="initiateRequest()"
 		>
 			<IconSVG name="mdiMapMarkerOutline" variant="inverted" />
-			<!-- TODO: translations -->
-			<span>Get location</span>
+			<span>{{ t('input_geopoint.get_location.label') }}</span>
 		</Button>
 
 		<div v-if="committedValue != null" class="geopoint-value-container">
@@ -136,8 +137,8 @@ const onSave = (saved: GeolocationRequestSuccess) => {
 				<IconSVG v-else class="check-icon" name="mdiCheck" variant="primary" />
 			</div>
 			<div class="geopoint-value">
-				<strong class="geo-quality">{{ committedValueAccuracy.label }}</strong>
-				<GeopointFormattedValue :question="question" />
+				<strong class="geo-quality">{{ t(committedValueAccuracy.labelMessageId) }}</strong>
+				<GeolocationFormattedValue :question="question" />
 				<Button
 					v-if="!isDisabled"
 					outlined
@@ -146,8 +147,7 @@ const onSave = (saved: GeolocationRequestSuccess) => {
 					@click="initiateRequest()"
 				>
 					<IconSVG name="mdiRefresh" />
-					<!-- TODO: translations -->
-					<span>Try again</span>
+					<span>{{ t('input_geopoint.try_again.label') }}</span>
 				</Button>
 			</div>
 		</div>
@@ -157,8 +157,7 @@ const onSave = (saved: GeolocationRequestSuccess) => {
 			class="geopoint-error"
 			:class="{ 'stack-errors': showErrorStyle }"
 		>
-			<!-- TODO: translations -->
-			<strong>Cannot access location</strong>&nbsp;<span>Grant location permission in the browser settings and make sure location is turned on.</span>
+			<strong>{{ t('input_geopoint.location_error.title') }}</strong>&nbsp;<span>{{ t('input_geopoint.location_error.description') }}</span>
 		</div>
 	</div>
 
@@ -175,30 +174,21 @@ const onSave = (saved: GeolocationRequestSuccess) => {
 </template>
 
 <style scoped lang="scss">
-// Variable definition
-.geopoint-control {
-	--geo-spacing-s: 5px;
-	--geo-spacing-m: 10px;
-	--geo-spacing-l: 15px;
-	--geo-spacing-xl: 20px;
-	--geo-spacing-xxl: 30px;
-}
-
 .geopoint-value-container {
 	display: inline-flex;
 	background: var(--odk-muted-background-color);
 	border-radius: var(--odk-radius);
 	align-items: flex-start;
 	font-size: var(--odk-answer-font-size);
-	padding: var(--geo-spacing-xl);
+	padding: var(--odk-spacing-xl);
 
 	.geo-quality {
-		margin-right: var(--geo-spacing-l);
+		margin-right: var(--odk-spacing-l);
 	}
 
 	.geopoint-icons {
 		margin-top: -4px;
-		margin-right: var(--geo-spacing-l);
+		margin-right: var(--odk-spacing-l);
 	}
 
 	.geopoint-value {
@@ -224,8 +214,8 @@ const onSave = (saved: GeolocationRequestSuccess) => {
 	color: var(--odk-error-text-color);
 	background-color: var(--odk-error-background-color);
 	border-radius: var(--odk-radius);
-	margin-top: var(--geo-spacing-l);
-	padding: var(--geo-spacing-xl);
+	margin-top: var(--odk-spacing-l);
+	padding: var(--odk-spacing-xl);
 
 	&.stack-errors {
 		padding: 0;

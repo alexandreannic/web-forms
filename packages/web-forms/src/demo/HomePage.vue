@@ -49,9 +49,9 @@ const isDev = import.meta.env.DEV;
 						<div class="sample-preview">
 							<img
 								class="sample-image"
-								srcset="../assets/images/demo-screenshot@1x.jpg,
-												../assets/images/demo-screenshot@2x.jpg 2x"
-								src="../assets/images/demo-screenshot@2x.jpg"
+								srcset="./assets/images/demo-screenshot@1x.jpg,
+												./assets/images/demo-screenshot@2x.jpg 2x"
+								src="./assets/images/demo-screenshot@2x.jpg"
 								alt="Sample Form Preview"
 							>
 						</div>
@@ -153,7 +153,7 @@ const isDev = import.meta.env.DEV;
 	.container {
 		width: 100%;
 		max-width: min(100%, 540px);
-		margin: 30px auto;
+		margin: var(--odk-spacing-xxl) auto;
 		display: flex;
 		flex-direction: column;
 		gap: 2rem;
@@ -259,7 +259,7 @@ const isDev = import.meta.env.DEV;
 		}
 
 		.intro-wrapper .intro-block {
-			margin-right: 20px;
+			margin-right: var(--odk-spacing-xl);
 		}
 
 		h1.demo-form-heading {

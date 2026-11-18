@@ -1,14 +1,15 @@
 import { CollectionValues } from '@getodk/common/types/collections/CollectionValues';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
+import { playwright } from '@vitest/browser-playwright';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import type { LibraryOptions, PluginOption } from 'vite';
+import { defineConfig } from 'vite';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
-import { defineConfig } from 'vite';
 
 interface PackageJson {
 	version?: string;
@@ -91,8 +92,8 @@ export default defineConfig(({ mode }) => {
 		globals = {};
 		extraPlugins.push(copyConfigFile);
 	} else {
-		external = ['vue'];
-		globals = { vue: 'Vue' };
+		// external = ['vue'];
+		// globals = { vue: 'Vue' };
 
 		if (isDev) {
 			extraPlugins.push(copyConfigFile);
@@ -100,7 +101,10 @@ export default defineConfig(({ mode }) => {
 
 		lib = {
 			formats: ['es'],
-			entry: resolve(__dirname, 'src/index.ts'),
+			entry: {
+				index: resolve(__dirname, 'src/index.ts'),
+				webcomponent: resolve(__dirname, 'src/index-wc.ts'),
+			},
 			name: 'OdkWebForms',
 			fileName: 'index',
 		};
@@ -118,6 +122,7 @@ export default defineConfig(({ mode }) => {
 			alias: {
 				'@getodk/common': resolve(__dirname, '../common/src'),
 				'@': fileURLToPath(new URL('./src', import.meta.url)),
+				'@locales': fileURLToPath(new URL('./locales', import.meta.url)),
 				'primevue/menuitem': 'primevue/menu',
 				// With following lines, fonts byte array are copied into css file
 				// Roboto fonts
@@ -151,6 +156,9 @@ export default defineConfig(({ mode }) => {
 				external,
 				output: {
 					globals,
+					entryFileNames: () => {
+						return `[name].js`;
+					},
 				},
 			},
 		},
@@ -175,7 +183,7 @@ export default defineConfig(({ mode }) => {
 			browser: {
 				enabled: BROWSER_ENABLED,
 				instances: BROWSER_NAME != null ? [{ browser: BROWSER_NAME }] : [],
-				provider: 'playwright',
+				provider: playwright(),
 				fileParallelism: false,
 				headless: true,
 				screenshotFailures: false,

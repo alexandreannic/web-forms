@@ -1,42 +1,59 @@
 <script setup lang="ts">
+import FormLoadFailureDialog from '@/components/FormLoadFailureDialog.vue';
 import IconSVG from '@/components/common/IconSVG.vue';
+import FormHeader from '@/components/form-layout/FormHeader.vue';
+import QuestionList from '@/components/form-layout/QuestionList.vue';
+import { waitAllTasksToFinish } from '@/lib/async/event-loop.ts';
 import {
-	FORM_IMAGE_CACHE,
+	TRANSLATE,
+	FORM_MEDIA_CACHE,
 	FORM_OPTIONS,
 	IS_FORM_EDIT_MODE,
 	SUBMIT_PRESSED,
 } from '@/lib/constants/injection-keys.ts';
 import type { FormStateSuccessResult } from '@/lib/init/form-state.ts';
 import { initializeFormState } from '@/lib/init/initialize-form-state.ts';
-import type { EditInstanceOptions, FormOptions } from '@/lib/init/load-form-state.ts';
 import { loadFormState } from '@/lib/init/load-form-state';
+import type { EditInstanceOptions, FormOptions } from '@/lib/init/load-form-state.ts';
 import { updateSubmittedFormState } from '@/lib/init/update-submitted-form-state.ts';
+import { geolocationService } from '@/lib/services/geolocationService.ts';
+import { useLocale } from '@/lib/locale/useLocale.ts';
 import type {
 	HostSubmissionResultCallback,
 	OptionalAwaitableHostSubmissionResult,
 } from '@/lib/submission/host-submission-result-callback.ts';
 import type { JRResourceURLString } from '@getodk/common/jr-resources/JRResourceURL.ts';
-import type { ObjectURL } from '@getodk/common/lib/web-compat/url.ts';
 import type {
 	ChunkedInstancePayload,
 	FetchFormAttachment,
 	MissingResourceBehavior,
 	MonolithicInstancePayload,
+	PreloadProperties,
 } from '@getodk/xforms-engine';
 import Button from 'primevue/button';
 import Card from 'primevue/card';
 import Message from 'primevue/message';
-import { computed, getCurrentInstance, provide, readonly, ref, shallowRef, watchEffect } from 'vue';
-import FormLoadFailureDialog from '@/components/FormLoadFailureDialog.vue';
-import FormHeader from '@/components/form-layout/FormHeader.vue';
-import QuestionList from '@/components/form-layout/QuestionList.vue';
+import {
+	computed,
+	getCurrentInstance,
+	onUnmounted,
+	provide,
+	readonly,
+	ref,
+	watch,
+	watchEffect,
+} from 'vue';
 
 const webFormsVersion = __WEB_FORMS_VERSION__;
+type ObjectURL = `blob:${string}`;
 
 export interface OdkWebFormsProps {
 	readonly formXml: string;
 	readonly fetchFormAttachment: FetchFormAttachment;
+	readonly trackDevice?: boolean;
+	readonly preloadProperties?: PreloadProperties;
 	readonly missingResourceBehavior?: MissingResourceBehavior;
+	readonly attachmentMaxSize?: number;
 
 	/**
 	 * Note: this parameter must be set when subscribing to the
@@ -53,9 +70,6 @@ export interface OdkWebFormsProps {
 
 const props = defineProps<OdkWebFormsProps>();
 
-const isFormEditMode = shallowRef(false);
-provide(IS_FORM_EDIT_MODE, readonly(isFormEditMode));
-
 const hostSubmissionResultCallbackFactory = (
 	currentState: FormStateSuccessResult
 ): HostSubmissionResultCallback => {
@@ -63,11 +77,16 @@ const hostSubmissionResultCallbackFactory = (
 		hostResult: OptionalAwaitableHostSubmissionResult
 	): Promise<void> => {
 		const submissionResult = await hostResult;
-
-		state.value = updateSubmittedFormState(submissionResult, currentState);
+		const options = {
+			form: formOptions,
+			preloadProperties: props.preloadProperties,
+			trackDevice: props.trackDevice,
+		};
+		state.value = updateSubmittedFormState(submissionResult, currentState, options);
 	};
 
 	return (hostResult) => {
+		resetComponentState();
 		void handleHostSubmissionResult(hostResult);
 	};
 };
@@ -115,64 +134,104 @@ type EventKey = `on${Capitalize<OdkWebFormEmitsEventType>}`;
  * @see {@link EventKey}
  */
 const isEmitSubscribed = (eventKey: EventKey): boolean => {
-	return eventKey in (componentInstance?.vnode.props ?? {});
+	return true;
+	// return eventKey in (componentInstance?.vnode.props ?? {});
 };
 
 const emitSubmit = async (currentState: FormStateSuccessResult) => {
-	if (isEmitSubscribed('onSubmit')) {
-		const payload = await currentState.root.prepareInstancePayload({
-			payloadType: 'monolithic',
-		});
-		const callback = hostSubmissionResultCallbackFactory(currentState);
+	await waitAllTasksToFinish();
+	const payload = await currentState.root.prepareInstancePayload({
+		payloadType: 'monolithic',
+	});
+	const callback = hostSubmissionResultCallbackFactory(currentState);
 
-		emit('submit', payload, callback);
-	}
+	emit('submit', payload, callback);
 };
 
 const emitSubmitChunked = async (currentState: FormStateSuccessResult) => {
-	if (isEmitSubscribed('onSubmitChunked')) {
-		const maxSize = props.submissionMaxSize;
+	const maxSize = props.submissionMaxSize;
 
-		if (maxSize == null) {
-			throw new Error('The `submissionMaxSize` prop is required for chunked submissions');
-		}
-
-		const payload = await currentState.root.prepareInstancePayload({
-			payloadType: 'chunked',
-			maxSize,
-		});
-		const callback = hostSubmissionResultCallbackFactory(currentState);
-
-		emit('submitChunked', payload, callback);
+	if (maxSize == null) {
+		throw new Error('The `submissionMaxSize` prop is required for chunked submissions');
 	}
+
+	await waitAllTasksToFinish();
+	const payload = await currentState.root.prepareInstancePayload({
+		payloadType: 'chunked',
+		maxSize,
+	});
+	const callback = hostSubmissionResultCallbackFactory(currentState);
+
+	emit('submitChunked', payload, callback);
 };
 
 const emit = defineEmits<OdkWebFormEmits>();
 
+const getLocation = async (): Promise<string> => {
+	let point = '';
+	try {
+		geolocationErrorMessage.value = '';
+		point = await geolocationService.getCurrentPosition();
+	} catch (error) {
+		// eslint-disable-next-line no-console -- Skip silently to match Collect behaviour.
+		console.warn('Error occurred while retrieving background location.', error);
+		geolocationErrorMessage.value = t('odk_web_forms.geolocation.error');
+	}
+
+	floatingErrorActive.value = !!geolocationErrorMessage.value.length;
+	return point;
+};
+
 const formOptions = readonly<FormOptions>({
 	fetchFormAttachment: props.fetchFormAttachment,
 	missingResourceBehavior: props.missingResourceBehavior,
+	geolocationProvider: { getLocation: () => getLocation() },
+	attachmentMaxSize: props.attachmentMaxSize,
 });
 provide(FORM_OPTIONS, formOptions);
-provide(FORM_IMAGE_CACHE, new Map<JRResourceURLString, ObjectURL>());
+provide(FORM_MEDIA_CACHE, new Map<JRResourceURLString, ObjectURL>());
 
 const state = initializeFormState();
 const submitPressed = ref(false);
 const floatingErrorActive = ref(false);
 const showValidationError = ref(false);
+const geolocationErrorMessage = ref<string | null>(null);
+const isFormEditMode = ref(false);
+provide(IS_FORM_EDIT_MODE, readonly(isFormEditMode));
+const { setLanguage, t } = useLocale(computed(() => state.value.root));
+provide(TRANSLATE, t);
+
+watch(
+	() => state.value,
+	(newState) => {
+		isFormEditMode.value = newState.instance?.mode === 'edit';
+	},
+	{ immediate: true }
+);
+
+const resetComponentState = () => {
+	submitPressed.value = false;
+	floatingErrorActive.value = false;
+	showValidationError.value = false;
+	geolocationErrorMessage.value = null;
+	geolocationService.teardown();
+};
 
 const init = async () => {
 	state.value = await loadFormState(props.formXml, {
-		form: formOptions,
+		form: {
+			fetchFormAttachment: props.fetchFormAttachment,
+			missingResourceBehavior: props.missingResourceBehavior,
+			geolocationProvider: { getLocation: () => getLocation() },
+			attachmentMaxSize: props.attachmentMaxSize,
+		},
 		editInstance: props.editInstance ?? null,
+		preloadProperties: props.preloadProperties,
+		trackDevice: props.trackDevice,
 	});
-
-	if (state.value.instance?.mode === 'edit') {
-		isFormEditMode.value = true;
-	}
 };
 
-void init();
+watch([() => props.formXml, () => props.editInstance], init, { immediate: true });
 
 const handleSubmit = (currentState: FormStateSuccessResult) => {
 	const { root } = currentState;
@@ -194,19 +253,23 @@ provide(SUBMIT_PRESSED, submitPressed);
 
 const validationErrorMessage = computed(() => {
 	const violationLength = state.value.root?.validationState.violations.length ?? 0;
-
-	// TODO: translations
 	if (violationLength === 0) return '';
-	else if (violationLength === 1) return '1 question with error';
-	else return `${violationLength} questions with errors`;
+	return t('odk_web_forms.validation.error', { count: violationLength });
 });
 
 watchEffect(() => {
-	if (floatingErrorActive.value && validationErrorMessage.value?.length) {
+	if (
+		floatingErrorActive.value &&
+		(validationErrorMessage.value?.length || geolocationErrorMessage.value?.length)
+	) {
 		showValidationError.value = true;
 	} else {
 		showValidationError.value = false;
 	}
+});
+
+onUnmounted(() => {
+	resetComponentState();
 });
 </script>
 <!--
@@ -227,10 +290,7 @@ watchEffect(() => {
 	/>
 
 	<template v-if="state.status === 'FORM_STATE_FAILURE'">
-		<FormLoadFailureDialog
-			severity="error"
-			:error="state.error"
-		/>
+		<FormLoadFailureDialog severity="error" :error="state.error" />
 	</template>
 
 	<div
@@ -241,12 +301,25 @@ watchEffect(() => {
 		<div class="form-wrapper">
 			<div v-if="showValidationError" class="error-banner-placeholder" />
 			<!-- Closable error message to clear the view and avoid overlap with other elements -->
-			<Message v-if="showValidationError" severity="error" class="form-error-message" :closable="true" @close="floatingErrorActive = false">
+			<Message
+				v-if="showValidationError"
+				severity="error"
+				class="form-error-message"
+				:closable="true"
+				@close="floatingErrorActive = false"
+			>
 				<IconSVG name="mdiAlertCircleOutline" variant="error" />
-				<span>{{ validationErrorMessage }}</span>
+				<ul class="form-error-text-wrap">
+					<li v-if="validationErrorMessage?.length">
+						{{ validationErrorMessage }}
+					</li>
+					<li v-if="geolocationErrorMessage?.length">
+						{{ geolocationErrorMessage }}
+					</li>
+				</ul>
 			</Message>
 
-			<FormHeader :form="state.root" />
+			<FormHeader :form="state.root" @change-language="setLanguage" />
 
 			<Card class="questions-card">
 				<template #content>
@@ -259,14 +332,14 @@ watchEffect(() => {
 			</Card>
 
 			<div class="footer flex justify-content-end flex-wrap gap-3">
-				<Button label="Send" @click="handleSubmit(state)" />
+				<Button :label="t('odk_web_forms.submit.label')" @click="handleSubmit(state)" />
 			</div>
 		</div>
 
 		<div class="powered-by-wrapper">
 			<a class="anchor" href="https://getodk.org" target="_blank">
 				<span class="caption">Powered by</span>
-				<img class="logo" src="../assets/images/odk-logo.svg" alt="ODK">
+				<img class="logo" src="../assets/images/odk-logo.svg" alt="ODK" />
 			</a>
 			<div class="version">
 				{{ webFormsVersion }}
@@ -296,13 +369,13 @@ watchEffect(() => {
 		flex-direction: column;
 		max-width: var(--odk-max-form-width);
 		margin: auto;
-		padding-top: 10px;
+		padding-top: var(--odk-spacing-m);
 
 		.questions-card {
 			border-radius: var(--odk-radius);
 			box-shadow: none;
 			border-top: none;
-			margin-top: 20px;
+			margin-top: var(--odk-spacing-xl);
 		}
 
 		.questions-card > :deep(.p-card-body) {
@@ -326,7 +399,7 @@ watchEffect(() => {
 			top: 1rem;
 
 			:deep(.p-message-wrapper) {
-				padding: 8px 15px;
+				padding: 8px var(--odk-spacing-l);
 				flex-grow: 1;
 			}
 
@@ -337,7 +410,17 @@ watchEffect(() => {
 			}
 
 			.odk-icon {
-				margin-right: 10px;
+				margin-right: var(--odk-spacing-m);
+			}
+
+			.form-error-text-wrap {
+				margin: 0;
+				list-style: none;
+				padding: 0;
+
+				li:not(:last-child) {
+					margin-bottom: var(--odk-spacing-m);
+				}
 			}
 		}
 	}
@@ -383,7 +466,7 @@ watchEffect(() => {
 			font-size: 14px;
 			font-weight: 300;
 			color: var(--odk-muted-text-color);
-			margin-top: 5px;
+			margin-top: var(--odk-spacing-s);
 		}
 	}
 }
@@ -421,7 +504,7 @@ watchEffect(() => {
 			.footer {
 				order: 4;
 				button {
-					margin-right: 20px;
+					margin-right: var(--odk-spacing-xl);
 				}
 			}
 		}
@@ -458,6 +541,8 @@ watchEffect(() => {
 
 <style lang="scss">
 @use 'primeflex/core/_variables.scss' as pf;
+@use '../assets/styles/primevue';
+@import 'primeflex/primeflex.css';
 
 :root {
 	// This variable is used to assert the breakpoint from PrimeFlex are loaded

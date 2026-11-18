@@ -1,6 +1,15 @@
 import { JAVAROSA_NAMESPACE_URI } from '@getodk/common/constants/xmlns.ts';
 import type { PartiallyKnownString } from '@getodk/common/types/string/PartiallyKnownString.ts';
+import type { AttributeContext } from '../../instance/internal-api/AttributeContext.ts';
+import type { InstanceValueContext } from '../../instance/internal-api/InstanceValueContext.ts';
+import type { BindDefinition } from './BindDefinition.ts';
 import type { BindElement } from './BindElement.ts';
+import { XFORM_EVENT, type XFormEvent } from './Event.ts';
+
+/**
+ * Per {@link https://getodk.github.io/xforms-spec/#preload-attributes:~:text=concatenation%20of%20%E2%80%98uuid%3A%E2%80%99%20and%20uuid()}
+ */
+const PRELOAD_UID_EXPRESSION = 'concat("uuid:", uuid())';
 
 type PartiallyKnownPreloadParameter<Known extends string> = PartiallyKnownString<
 	NonNullable<Known>
@@ -61,34 +70,64 @@ const getPreloadInput = (bindElement: BindElement): AnyPreloadInput | null => {
  *
  * - {@link type}, a `jr:preload`
  * - {@link parameter}, an associated `jr:preloadParams` value
- *
- * @todo It would probably make sense for the _definition_ to also convey:
- *
- * 1. Which {@link https://getodk.github.io/xforms-spec/#events | event} the
- *    preload is semantically associated with (noting that the spec may be a tad
- *    overzealous about this association).
- *
- * 2. The constant XPath expression (or other computation?) expressed by the
- *    combined {@link type} and {@link parameter}.
  */
 export class BindPreloadDefinition<Type extends PreloadType> implements PreloadInput<Type> {
-	static from(bindElement: BindElement): AnyBindPreloadDefinition | null {
+	static from(
+		definition: BindDefinition,
+		bindElement: BindElement
+	): AnyBindPreloadDefinition | null {
 		const input = getPreloadInput(bindElement);
 
 		if (input == null) {
 			return null;
 		}
 
-		return new this(input);
+		const type = input.type;
+		const parameter = input.parameter;
+		let event;
+		if (definition.form.xformDOM.isInstanceID(bindElement.getAttribute('nodeset'))) {
+			event = XFORM_EVENT.odkInstanceLoad;
+		} else if (type === 'timestamp' && parameter === 'end') {
+			event = XFORM_EVENT.xformsRevalidate;
+		} else {
+			event = XFORM_EVENT.odkInstanceFirstLoad;
+		}
+		return new this(type, parameter, event);
 	}
 
-	readonly type: Type;
-	readonly parameter: PreloadParameter<Type>;
-
-	private constructor(input: PreloadInput<Type>) {
-		this.type = input.type;
-		this.parameter = input.parameter;
+	getValue(context: AttributeContext | InstanceValueContext): string | undefined {
+		if (this.type === 'uid') {
+			return context.evaluator.evaluateString(PRELOAD_UID_EXPRESSION);
+		}
+		if (this.type === 'timestamp') {
+			return context.evaluator.evaluateString('now()');
+		}
+		if (this.type === 'date') {
+			return context.evaluator.evaluateString('today()');
+		}
+		if (this.type === 'property') {
+			const properties = context.instanceConfig.preloadProperties;
+			if (this.parameter === 'deviceid') {
+				return properties.deviceID;
+			}
+			if (this.parameter === 'email') {
+				return properties.email;
+			}
+			if (this.parameter === 'phonenumber') {
+				return properties.phoneNumber;
+			}
+			if (this.parameter === 'username') {
+				return properties.username;
+			}
+		}
+		return;
 	}
+
+	private constructor(
+		readonly type: Type,
+		readonly parameter: PreloadParameter<Type>,
+		readonly event: XFormEvent
+	) {}
 }
 
 // prettier-ignore

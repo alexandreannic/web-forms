@@ -10,8 +10,15 @@ import type {
 } from '@getodk/common/types/dom.ts';
 import { DefaultEvaluator } from '@getodk/xpath';
 
+export const SET_VALUE_LOCAL_NAME = 'setvalue';
+export const SET_GEOPOINT_LOCAL_NAME = 'odk:setgeopoint';
+
 interface DOMBindElement extends KnownAttributeLocalNamedElement<'bind', 'nodeset'> {}
-interface DOMSetValueElement extends KnownAttributeLocalNamedElement<'setvalue', 'event'> {}
+export interface DOMSetValueElement extends KnownAttributeLocalNamedElement<'setvalue', 'event'> {}
+export interface DOMSetGeopointElement extends KnownAttributeLocalNamedElement<
+	'odk:setgeopoint',
+	'event'
+> {}
 
 const getMetaElement = (primaryInstanceRoot: Element): Element | null => {
 	for (const child of primaryInstanceRoot.children) {
@@ -123,13 +130,17 @@ const normalizeDefaultMetaBindings = (
 	return binds;
 };
 
-export interface DOMItextTranslationElement
-	extends KnownAttributeLocalNamedElement<'translation', 'lang'> {}
+export interface DOMItextTranslationElement extends KnownAttributeLocalNamedElement<
+	'translation',
+	'lang'
+> {}
 
 interface DOMInstanceElement extends LocalNamedElement<'instance'> {}
 
-export interface DOMSecondaryInstanceElement
-	extends KnownAttributeLocalNamedElement<'instance', 'id'> {}
+export interface DOMSecondaryInstanceElement extends KnownAttributeLocalNamedElement<
+	'instance',
+	'id'
+> {}
 
 type AssertDOMSecondaryInstanceElement = (
 	element: DOMInstanceElement
@@ -325,6 +336,15 @@ export class XFormDOM {
 		return new this(sourceXML, { isNormalized: false });
 	}
 
+	isInstanceID = (nodeset: string) => {
+		const meta = getMetaElement(this.primaryInstanceRoot);
+		const instanceId = meta && getMetaChildElement(meta, 'instanceID');
+		return (
+			instanceId &&
+			nodeset === `/${this.primaryInstanceRoot.nodeName}/${meta.nodeName}/${instanceId.nodeName}`
+		);
+	};
+
 	protected readonly normalizedXML: string;
 
 	// Commonly accessed landmark nodes
@@ -338,6 +358,7 @@ export class XFormDOM {
 	readonly model: Element;
 	readonly binds: readonly DOMBindElement[];
 	readonly setValues: readonly DOMSetValueElement[];
+	readonly setGeopoints: readonly DOMSetGeopointElement[];
 	readonly primaryInstance: Element;
 	readonly primaryInstanceRoot: Element;
 
@@ -371,11 +392,15 @@ export class XFormDOM {
 			}
 		);
 		const setValues: readonly DOMSetValueElement[] = evaluator.evaluateNodes<DOMSetValueElement>(
-			'./xf:setvalue[@event]',
+			`./xf:${SET_VALUE_LOCAL_NAME}[@event]`,
 			{
 				contextNode: model,
 			}
 		);
+		const setGeopoints: readonly DOMSetGeopointElement[] =
+			evaluator.evaluateNodes<DOMSetGeopointElement>(`./${SET_GEOPOINT_LOCAL_NAME}[@event]`, {
+				contextNode: model,
+			});
 
 		const instances = evaluator.evaluateNodes<DOMInstanceElement>('./xf:instance', {
 			contextNode: model,
@@ -426,6 +451,7 @@ export class XFormDOM {
 		this.model = model;
 		this.binds = binds;
 		this.setValues = setValues;
+		this.setGeopoints = setGeopoints;
 		this.primaryInstance = primaryInstance;
 		this.primaryInstanceRoot = primaryInstanceRoot;
 		this.itextTranslationElements = itextTranslationElements;

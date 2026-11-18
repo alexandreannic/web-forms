@@ -1,6 +1,7 @@
-import { XPathNodeKindKey } from '@getodk/xpath';
+import { clearCache, XPathNodeKindKey } from '@getodk/xpath';
 import type { Accessor } from 'solid-js';
 import { createSignal } from 'solid-js';
+import type { GeolocationProvider } from '../client';
 import type { FormInstanceInitializationMode } from '../client/form/FormInstance.ts';
 import type { ActiveLanguage, FormLanguage, FormLanguages } from '../client/FormLanguage.ts';
 import type { FormNodeID } from '../client/identity.ts';
@@ -17,7 +18,10 @@ import { EngineXPathEvaluator } from '../integration/xpath/EngineXPathEvaluator.
 import type { StaticDocument } from '../integration/xpath/static-dom/StaticDocument.ts';
 import { createPrimaryInstanceState } from '../lib/client-reactivity/instance-state/createPrimaryInstanceState.ts';
 import { prepareInstancePayload } from '../lib/client-reactivity/instance-state/prepareInstancePayload.ts';
-import { createAttributeState } from '../lib/reactivity/createAttributeState.ts';
+import {
+	createAttributeState,
+	type AttributeState,
+} from '../lib/reactivity/createAttributeState.ts';
 import { createChildrenState } from '../lib/reactivity/createChildrenState.ts';
 import { createTranslationState } from '../lib/reactivity/createTranslationState.ts';
 import type { MaterializedChildren } from '../lib/reactivity/materializeCurrentStateChildren.ts';
@@ -84,6 +88,7 @@ interface PrimaryInstanceStateSpec {
 
 interface PrimaryInstanceStateInputByMode {
 	readonly create: null;
+	readonly reset: null;
 	readonly edit: InitialInstanceState;
 	readonly restore: InitialInstanceState;
 }
@@ -92,7 +97,7 @@ export type PrimaryInstanceInitialState<Mode extends FormInstanceInitializationM
 	PrimaryInstanceStateInputByMode[Mode];
 
 export interface BasePrimaryInstanceOptions {
-	readonly scope: ReactiveScope;
+	scope: ReactiveScope;
 	readonly model: ModelDefinition;
 	readonly secondaryInstances: SecondaryInstancesDefinition;
 }
@@ -101,15 +106,16 @@ export interface ModelessPrimaryInstanceOptions extends BasePrimaryInstanceOptio
 	readonly config: InstanceConfig;
 }
 
-export interface PrimaryInstanceOptions<Mode extends FormInstanceInitializationMode>
-	extends ModelessPrimaryInstanceOptions {
+export interface PrimaryInstanceOptions<
+	Mode extends FormInstanceInitializationMode,
+> extends ModelessPrimaryInstanceOptions {
 	readonly mode: Mode;
 	readonly initialState: PrimaryInstanceInitialState<Mode>;
 }
 
 export class PrimaryInstance<
-		Mode extends FormInstanceInitializationMode = FormInstanceInitializationMode,
-	>
+	Mode extends FormInstanceInitializationMode = FormInstanceInitializationMode,
+>
 	extends InstanceNode<RootDefinition, PrimaryInstanceStateSpec, null, Root>
 	implements
 		PrimaryInstanceDocument,
@@ -125,6 +131,7 @@ export class PrimaryInstance<
 	// InstanceNode
 	protected readonly state: SharedNodeState<PrimaryInstanceStateSpec>;
 	protected readonly engineState: EngineState<PrimaryInstanceStateSpec>;
+	readonly attributeState: AttributeState;
 
 	override readonly instanceNode: StaticDocument;
 	readonly getChildren: Accessor<readonly Root[]>;
@@ -132,7 +139,9 @@ export class PrimaryInstance<
 	readonly isReadonly = () => false;
 	readonly hasNonRelevantAncestor = () => false;
 	readonly isRelevant = () => true;
+	readonly hasRelevantBodyNodes: Accessor<boolean> = () => this.root.hasRelevantBodyNodes();
 
+	private geolocationProvider: GeolocationProvider | undefined;
 	// TranslationContext (support)
 	private readonly setActiveLanguage: SimpleAtomicStateSetter<FormLanguage>;
 
@@ -164,6 +173,8 @@ export class PrimaryInstance<
 		const activeInstance = initialState?.document ?? modelInstance;
 		const definition = model.getRootDefinition(activeInstance);
 
+		clearCache();
+
 		super(config, null, activeInstance, definition, {
 			scope,
 			computeReference: () => PRIMARY_INSTANCE_REFERENCE,
@@ -173,6 +184,7 @@ export class PrimaryInstance<
 		this.model = model;
 		this.attachments = new InstanceAttachmentsState(initialState?.attachments);
 		this.instanceNode = activeInstance;
+		this.geolocationProvider = config.geolocationProvider;
 
 		const [isAttached, setIsAttached] = createSignal(false);
 
@@ -197,7 +209,7 @@ export class PrimaryInstance<
 		this.classes = definition.classes;
 
 		const childrenState = createChildrenState<this, Root>(this);
-		const attributeState = createAttributeState(this.scope);
+		this.attributeState = createAttributeState(this.scope);
 
 		this.getChildren = childrenState.getChildren;
 
@@ -212,7 +224,7 @@ export class PrimaryInstance<
 			valueOptions: null,
 			value: null,
 			children: childrenState.childIds,
-			attributes: attributeState.getAttributes,
+			attributes: this.attributeState.getAttributes,
 		};
 
 		const state = createSharedNodeState(scope, stateSpec, config);
@@ -233,8 +245,12 @@ export class PrimaryInstance<
 		this.instanceState = createPrimaryInstanceState(this);
 
 		childrenState.setChildren([root]);
-		attributeState.setAttributes(buildAttributes(this));
+		this.attributeState.setAttributes(buildAttributes(this));
 		setIsAttached(true);
+	}
+
+	override getAttributes(): readonly Attribute[] {
+		return this.attributeState.getAttributes();
 	}
 
 	// PrimaryInstanceDocument
@@ -285,5 +301,14 @@ export class PrimaryInstance<
 		});
 
 		return Promise.resolve(result);
+	}
+
+	async getBackgroundGeopoint(): Promise<string> {
+		if (!this.geolocationProvider) {
+			return '';
+		}
+
+		const location = await this.geolocationProvider.getLocation();
+		return location ?? '';
 	}
 }

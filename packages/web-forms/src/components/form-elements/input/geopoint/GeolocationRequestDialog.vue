@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import ElapsedTime from '@/components/common/ElapsedTime.vue';
 import IconSVG from '@/components/common/IconSVG.vue';
+import { TRANSLATE } from '@/lib/constants/injection-keys.ts';
+import type { Translate } from '@/lib/locale/useLocale.ts';
 import { truncateDecimals } from '@/lib/format/truncate-decimals.ts';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import ProgressSpinner from 'primevue/progressspinner';
-import { computed, onBeforeUnmount, ref, watchEffect } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, watchEffect } from 'vue';
 import {
 	GEOLOCATION_STATUS,
 	type GeolocationRequestFailure,
@@ -23,6 +25,8 @@ interface GeolocationRequestDialogProps {
 }
 
 const props = defineProps<GeolocationRequestDialogProps>();
+
+const t: Translate = inject(TRANSLATE)!;
 
 const accuracyTruncateOptions = { decimals: 3 };
 
@@ -124,8 +128,7 @@ onBeforeUnmount(cleanup);
 			<div class="geo-dialog-header">
 				<div class="geo-dialog-header-title">
 					<ProgressSpinner class="geo-spinner" stroke-width="4" />
-					<!-- TODO: translations -->
-					<strong>Finding your location</strong>
+					<strong>{{ t('geolocation_dialog.header.title') }}</strong>
 				</div>
 				<button class="close-icon" @click="cancel()">
 					<IconSVG name="mdiClose" />
@@ -141,16 +144,15 @@ onBeforeUnmount(cleanup);
 				</div>
 
 				<div class="geopoint-information">
-					<!-- TODO: translations -->
 					<strong v-if="accuracy.value != null" class="geo-quality">
-						{{ truncateDecimals(accuracy.value, accuracyTruncateOptions) }} m - {{ accuracy.label }}
+						{{ truncateDecimals(accuracy.value, accuracyTruncateOptions) }} m - {{ t(accuracy.labelMessageId) }}
 					</strong>
 					<p v-if="options.accuracyThreshold > 0 && state.geopoint == null">
-						Location will be saved at {{ options.accuracyThreshold }} m
+						{{ t('geolocation_dialog.accuracy_threshold.info', { accuracyThreshold: options.accuracyThreshold }) }}
 					</p>
-					<p>Time taken to capture location: <ElapsedTime /></p>
+					<p>{{ t('geolocation_dialog.elapsed_time.label') }} <ElapsedTime /></p>
 					<p v-if="previousAccuracy.value">
-						Previous saved location at {{ truncateDecimals(previousAccuracy.value, accuracyTruncateOptions) }} m
+						{{ t('geolocation_dialog.previous_accuracy.info', { accuracy: truncateDecimals(previousAccuracy.value, accuracyTruncateOptions) }) }}
 					</p>
 				</div>
 			</div>
@@ -158,11 +160,9 @@ onBeforeUnmount(cleanup);
 
 		<template #footer>
 			<div class="geo-dialog-footer">
-				<!-- TODO: translations -->
-				<Button text severity="contrast" label="Cancel" @click="cancel()" />
+				<Button text severity="contrast" :label="t('odk_web_forms.cancel.label')" @click="cancel()" />
 
-				<!-- TODO: translations -->
-				<Button label="Save location" :disabled="accuracy.value == null" @click="save()" />
+				<Button :label="t('geolocation_dialog.save.label')" :disabled="accuracy.value == null" @click="save()" />
 			</div>
 		</template>
 	</Dialog>
@@ -170,14 +170,6 @@ onBeforeUnmount(cleanup);
 
 <style lang="scss">
 @use 'primeflex/core/_variables.scss' as pf;
-
-.geo-dialog {
-	--geo-spacing-s: 5px;
-	--geo-spacing-m: 10px;
-	--geo-spacing-l: 15px;
-	--geo-spacing-xl: 20px;
-	--geo-spacing-xxl: 30px;
-}
 
 .geo-dialog-header {
 	display: flex;
@@ -194,12 +186,11 @@ onBeforeUnmount(cleanup);
 
 .geo-dialog-header-title {
 	display: flex;
-	font-size: var(--odk-dialog-title-font-size);
 
 	.geo-spinner {
 		width: 22px;
 		height: 22px;
-		margin-right: var(--geo-spacing-l);
+		margin-right: var(--odk-spacing-l);
 	}
 }
 
@@ -210,7 +201,7 @@ onBeforeUnmount(cleanup);
 
 	.geopoint-icons {
 		margin-top: -4px;
-		margin-right: var(--geo-spacing-l);
+		margin-right: var(--odk-spacing-l);
 
 		.warning-icon path {
 			transform: scale(0.91) translate(-1px, -1px);
@@ -224,7 +215,7 @@ onBeforeUnmount(cleanup);
 
 .geo-dialog-body {
 	align-items: flex-start;
-	padding: var(--geo-spacing-xxl);
+	padding: var(--odk-spacing-xxl);
 	max-width: 450px;
 	width: 80vw;
 }
@@ -232,34 +223,23 @@ onBeforeUnmount(cleanup);
 .geopoint-information {
 	p {
 		font-size: var(--odk-base-font-size);
-		margin: var(--geo-spacing-s) 0;
+		margin: var(--odk-spacing-s) 0;
 	}
 
 	strong {
 		font-size: var(--odk-base-font-size);
 		display: block;
-		margin-bottom: var(--geo-spacing-m);
+		margin-bottom: var(--odk-spacing-m);
 	}
 }
 
 .geo-dialog-footer button {
-	margin: 0 0 var(--geo-spacing-m) var(--geo-spacing-l);
-}
-
-// Overriding Primevue's styles
-.p-dialog.geo-dialog {
-	background: var(--odk-base-background-color);
-
-	&,
-	.p-dialog-footer,
-	.p-dialog-header {
-		border-radius: var(--odk-radius);
-	}
+	margin: 0 0 var(--odk-spacing-m) var(--odk-spacing-l);
 }
 
 @media screen and (max-width: #{pf.$md}) {
 	.geo-dialog-body {
-		padding: var(--geo-spacing-xxl) var(--geo-spacing-xl);
+		padding: var(--odk-spacing-xxl) var(--odk-spacing-xl);
 	}
 }
 </style>

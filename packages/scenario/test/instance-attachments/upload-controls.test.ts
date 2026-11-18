@@ -8,7 +8,7 @@ import {
 	t,
 	title,
 	upload,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import type { UploadMediaOptions, UploadNode } from '@getodk/xforms-engine';
 import { assert, beforeEach, describe, expect, it } from 'vitest';
 import { binaryAnswer } from '../../src/answer/ExpectedBinaryAnswer.ts';
@@ -173,11 +173,21 @@ describe('Instance attachments: upload controls', () => {
 
 			{
 				description: 'parses an unknown `mediatype` MIME type value',
+				mediaType: 'xyz/*',
+				expected: {
+					accept: 'xyz/*',
+					type: 'xyz',
+					subtype: '*',
+				},
+			},
+
+			{
+				description: 'parses default "application/*" `mediatype` MIME type value',
 				mediaType: 'application/*',
 				expected: {
-					accept: 'application/*',
-					type: 'application',
-					subtype: '*',
+					accept: '*',
+					type: null,
+					subtype: null,
 				},
 			},
 

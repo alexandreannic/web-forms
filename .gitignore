@@ -1,6 +1,5 @@
 # Package management
 node_modules/
-.yarn
 
 # Environment detritus
 .DS_Store
@@ -22,6 +21,7 @@ dist/
 dist-demo/
 examples/**/dist
 packages/**/dist
+!packages/web-forms/dist/
 
 # Generated documentation
 packages/*/api-docs
@@ -33,4 +33,3 @@ packages/*/test-results
 
 # Generated fixtures/etc
 packages/**/test/**/fixtures/generated/**
-/scripts/.yarn/

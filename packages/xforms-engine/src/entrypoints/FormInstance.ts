@@ -27,9 +27,9 @@ interface FormInstanceOptions<Mode extends FormInstanceInitializationMode> {
 	readonly instanceConfig: FormInstanceConfig;
 }
 
-export class FormInstance<Mode extends FormInstanceInitializationMode>
-	implements ClientFormInstance<Mode>
-{
+export class FormInstance<
+	Mode extends FormInstanceInitializationMode,
+> implements ClientFormInstance<Mode> {
 	readonly mode: Mode;
 	readonly root: Root;
 
@@ -41,6 +41,8 @@ export class FormInstance<Mode extends FormInstanceInitializationMode>
 		const config: InstanceConfig = {
 			clientStateFactory: instanceConfig.stateFactory ?? identity,
 			computeAttachmentName: instanceConfig.instanceAttachments?.fileNameFactory ?? (() => null),
+			preloadProperties: instanceConfig.preloadProperties ?? {},
+			geolocationProvider: instanceConfig.geolocationProvider,
 		};
 		const primaryInstanceOptions: PrimaryInstanceOptions<Mode> = {
 			...options.instanceOptions,
@@ -48,6 +50,7 @@ export class FormInstance<Mode extends FormInstanceInitializationMode>
 			initialState,
 			config,
 		};
+
 		const { root } = new PrimaryInstance(primaryInstanceOptions);
 
 		this.mode = mode;

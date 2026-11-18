@@ -1,12 +1,7 @@
 import { JRResourceURL } from '@getodk/common/jr-resources/JRResourceURL.ts';
 
 import type { MarkdownNode } from '../../client/MarkdownNode.ts';
-import type {
-	TextRange as ClientTextRange,
-	TextChunk,
-	TextOrigin,
-	TextRole,
-} from '../../client/TextRange.ts';
+import type { TextRange as ClientTextRange, TextChunk, TextRole } from '../../client/TextRange.ts';
 import { format } from './markdownFormat.ts';
 
 export interface MediaSources {
@@ -15,9 +10,7 @@ export interface MediaSources {
 	audio?: JRResourceURL;
 }
 
-export class TextRange<Role extends TextRole, Origin extends TextOrigin>
-	implements ClientTextRange<Role, Origin>
-{
+export class TextRange<Role extends TextRole> implements ClientTextRange<Role> {
 	*[Symbol.iterator]() {
 		yield* this.chunks;
 	}
@@ -43,7 +36,6 @@ export class TextRange<Role extends TextRole, Origin extends TextOrigin>
 	}
 
 	constructor(
-		readonly origin: Origin,
 		readonly role: Role,
 		protected readonly chunks: readonly TextChunk[],
 		protected readonly mediaSources?: MediaSources

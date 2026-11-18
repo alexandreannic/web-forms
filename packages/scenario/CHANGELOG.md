@@ -1,5 +1,85 @@
 # @getodk/scenario
 
+## 0.12.0
+
+### Minor Changes
+
+- 86a54ab: Editing submissions no longer blocks until attachments have been downloaded
+
+### Patch Changes
+
+- 7ac5a19: Add support to datetime question type.
+- 4fc0e56: Fixed setvalue not firing when the field becomes relevant
+
+## 0.11.7
+
+### Patch Changes
+
+- 8f1865c: Fixed images not allowed in file uploads
+
+## 0.11.6
+
+### Patch Changes
+
+- 7b47bb1: Fixed a bug with markdown rendering outputs with empty values
+
+## 0.11.5
+
+### Patch Changes
+
+- e9f4e28: Fixed markdown to support computed link urls
+- 56a1652: Move assertion utilities to @getodk/scenario
+- b83577f: Fix markdown to preserve line breaks
+
+## 0.11.4
+
+### Patch Changes
+
+- 72bac16: Fixed markdown parser to ignore single labels that start with numbers instead of turning them into ordered lists
+- 53e60da: Handle last-saved virtual secondary instance gracefully pending full implementation later
+- aa8090a: Fixes integer and range codecs to not throw errors when given invalid data
+- 14d6c9a: Fixed markdown to not interpret leading whitespace as a code block
+
+## 0.11.3
+
+### Patch Changes
+
+- 90e5a03: Adds time question type
+- f382254: Fixed a bug where editing forms with repeat counts caused odk-new-repeat events to fire and overwrite user entered values
+- 507344e: Decimals and geopoint values are now serialized with a minimum of one digit after the decimal point
+
+## 0.11.2
+
+### Patch Changes
+
+- 4346971: Adds support for Geoshape and Geotrace.
+- 72a4961: Allow for multiple setvalue actions to reference the same element
+- cd382fb: Set attribute value to instance value when editing submission
+- c44525a: Fixed xforms-value-changed firing when loading submission for edit
+- ad6d0ba: Fixes odk-instance-first-load so it doesn't run on add repeat
+- 126e11d: Adds support for setgeopoint
+- d1811f2: Fixes preload bindings so they only set the value on first load
+
+## 0.11.1
+
+### Patch Changes
+
+- f5b706e: Fixes the xpath traversal code to support dynamic attributes
+- 7908b30: Fixes actions so they are no longer reactive to model updates
+- 40ea005: Fix Attributes to have the correct contextNode so `current()` works as expected
+
+## 0.11.0
+
+### Minor Changes
+
+- bac8412: Add support for all jr:preload options
+- 6da0c6c: Add support for setvalue action and odk-instance-first-load, odk-new-repeat, xforms-value-changed events
+- 3ec1d26: Support attributes on leaf nodes
+
+### Patch Changes
+
+- 0be7d7c: Upgrade dependencies
+
 ## 0.10.0
 
 ### Minor Changes

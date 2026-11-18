@@ -11,12 +11,13 @@ import type {
 } from '../../integration/xpath/adapter/XFormsXPathNode.ts';
 import { XFORMS_XPATH_NODE_RANGE_KIND } from '../../integration/xpath/adapter/XFormsXPathNode.ts';
 import type { EngineXPathEvaluator } from '../../integration/xpath/EngineXPathEvaluator.ts';
+import type { StaticAttribute } from '../../integration/xpath/static-dom/StaticAttribute.ts';
 import type { StaticElement } from '../../integration/xpath/static-dom/StaticElement.ts';
 import { createComputedExpression } from '../../lib/reactivity/createComputedExpression.ts';
 import type { ReactiveScope } from '../../lib/reactivity/scope.ts';
 import type { AnyNodeDefinition } from '../../parse/model/NodeDefinition.ts';
 import type { DescendantNodeInitOptions } from '../children/DescendantNodeInitOptions.ts';
-import type { AnyChildNode, AnyParentNode, RepeatRange } from '../hierarchy.ts';
+import type { AnyChildNode, AnyNode, RepeatRange } from '../hierarchy.ts';
 import type { EvaluationContext } from '../internal-api/EvaluationContext.ts';
 import type { RepeatInstance } from '../repeat/RepeatInstance.ts';
 import type { Root } from '../Root.ts';
@@ -42,10 +43,8 @@ export type AnyDescendantNode = DescendantNode<
 	DescendantNodeDefinition,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	DescendantNodeStateSpec<any>,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	any,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	any
+	AnyNode,
+	AnyChildNode | null
 >;
 
 interface DescendantNodeOptions {
@@ -60,12 +59,12 @@ interface DescendantNodeOptions {
  * with the current module-local {@link DescendantNodeOptions}).
  */
 export abstract class DescendantNode<
-		Definition extends DescendantNodeDefinition,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		Spec extends DescendantNodeStateSpec<any>,
-		Parent extends AnyParentNode,
-		Child extends AnyChildNode | null = null,
-	>
+	Definition extends DescendantNodeDefinition,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	Spec extends DescendantNodeStateSpec<any>,
+	Parent extends AnyNode,
+	Child extends AnyChildNode | null = null,
+>
 	extends InstanceNode<Definition, Spec, Parent, Child>
 	implements BaseNode, XFormsXPathPrimaryInstanceDescendantNode, EvaluationContext
 {
@@ -107,6 +106,23 @@ export abstract class DescendantNode<
 		return this.isSelfRelevant();
 	};
 
+	readonly hasRelevantBodyNodes: Accessor<boolean> = () => {
+		if (!this.isSelfRelevant()) {
+			return false;
+		}
+
+		const children = this.getChildren();
+		if (!children?.length) {
+			return false;
+		}
+
+		return children
+			.filter((child) => child.nodeType !== 'model-value')
+			.some((child) => {
+				return child.getChildren()?.length ? child.hasRelevantBodyNodes() : child.isSelfRelevant();
+			});
+	};
+
 	readonly isRequired: Accessor<boolean>;
 
 	// XFormsXPathPrimaryInstanceDescendantNode
@@ -137,7 +153,7 @@ export abstract class DescendantNode<
 
 	constructor(
 		override readonly parent: Parent,
-		override readonly instanceNode: StaticElement | null,
+		override readonly instanceNode: StaticAttribute | StaticElement | null,
 		override readonly definition: Definition,
 		options?: DescendantNodeOptions
 	) {

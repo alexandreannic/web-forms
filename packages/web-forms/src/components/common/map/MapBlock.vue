@@ -5,19 +5,36 @@
  * load on demand. Avoids main bundle bloat.
  */
 import IconSVG from '@/components/common/IconSVG.vue';
-import type { Mode } from '@/components/common/map/getModeConfig.ts';
+import { type Mode, type SingleFeatureType } from '@/components/common/map/getModeConfig.ts';
+import MapAdvancedPanel from '@/components/common/map/MapAdvancedPanel.vue';
+import MapConfirmDialog from '@/components/common/map/MapConfirmDialog.vue';
+import MapControls from '@/components/common/map/MapControls.vue';
 import MapProperties from '@/components/common/map/MapProperties.vue';
 import MapStatusBar from '@/components/common/map/MapStatusBar.vue';
+import MapUpdateCoordsDialog from '@/components/common/map/MapUpdateCoordsDialog.vue';
 import { STATES, useMapBlock } from '@/components/common/map/useMapBlock.ts';
-import { QUESTION_HAS_ERROR } from '@/lib/constants/injection-keys.ts';
-import type { FeatureCollection, Feature } from 'geojson';
+import { TRANSLATE, QUESTION_HAS_ERROR } from '@/lib/constants/injection-keys.ts';
+import type { Translate } from '@/lib/locale/useLocale.ts';
+import type { Feature, FeatureCollection } from 'geojson';
+import type { Coordinate } from 'ol/coordinate';
+import { toLonLat } from 'ol/proj';
 import Button from 'primevue/button';
-import { computed, type ComputedRef, inject, onMounted, onUnmounted, ref, watch } from 'vue';
 import Message from 'primevue/message';
+import {
+	computed,
+	type ComputedRef,
+	inject,
+	nextTick,
+	onMounted,
+	onUnmounted,
+	ref,
+	watch,
+} from 'vue';
 
 interface MapBlockProps {
 	featureCollection: FeatureCollection;
 	disabled: boolean;
+	singleFeatureType?: SingleFeatureType;
 	mode: Mode;
 	orderedExtraProps: Map<string, Array<[string, string]>>;
 	savedFeatureValue: Feature | undefined;
@@ -27,12 +44,60 @@ const props = defineProps<MapBlockProps>();
 const emit = defineEmits(['save']);
 const mapElement = ref<HTMLElement | undefined>();
 const isFullScreen = ref(false);
+const isAdvancedPanelOpen = ref(false);
+const isAdvancedPanelClosing = ref(false);
+const isAdvancedPanelActive = computed(() => isAdvancedPanelOpen.value || isAdvancedPanelClosing.value);
+const confirmDeleteAction = ref(false);
+const isUpdateCoordsDialogOpen = ref(false);
+const pointPlaced = ref(false);
+const selectedVertex = ref<Coordinate | undefined>();
+const showErrorFullScreen = ref(false);
 const showErrorStyle = inject<ComputedRef<boolean>>(
 	QUESTION_HAS_ERROR,
 	computed(() => false)
 );
+const t: Translate = inject(TRANSLATE)!;
 
-const mapHandler = useMapBlock(props.mode, { onFeaturePlacement: () => emitSavedFeature() });
+const mapHandler = useMapBlock(
+	{ mode: props.mode, singleFeatureType: props.singleFeatureType },
+	{
+		onFeaturePlacement: () => onFeaturePlacement(),
+		onVertexSelect: (vertex) => (selectedVertex.value = vertex),
+	}
+);
+
+const advancedPanelCoords = computed<Coordinate | null>(() => {
+	if (!mapHandler.canOpenAdvancedPanel()) {
+		return null;
+	}
+	return selectedVertex.value?.length ? toLonLat(selectedVertex.value) : null;
+});
+
+const showSecondaryControls = computed(() => {
+	return !props.disabled && (mapHandler.canUndoChange() || mapHandler.canDeleteFeatureOrVertex());
+});
+
+const instructionMessage = computed(() => {
+	if (props.disabled) {
+		return null;
+	}
+
+	if (mapHandler.canDragFeatureAndVertex()) {
+		return {
+			placed: t('map_block.drag_vertex_instruction.placed'),
+			default: t('map_block.drag_vertex_instruction.default'),
+		};
+	}
+
+	if (mapHandler.canDragFeature()) {
+		return {
+			placed: t('map_block.drag_instruction.placed'),
+			default: t('map_block.drag_instruction.default'),
+		};
+	}
+
+	return null;
+});
 
 onMounted(() => {
 	if (!mapElement.value || !mapHandler) {
@@ -51,18 +116,39 @@ onUnmounted(() => {
 
 watch(
 	() => props.featureCollection,
-	(newData) => mapHandler.updateFeatureCollection(newData, props.savedFeatureValue),
+	(newData) => {
+		mapHandler.updateFeatureCollection(newData, props.savedFeatureValue);
+		emitSavedFeature();
+	},
 	{ deep: true }
 );
 
 watch(
 	() => props.savedFeatureValue,
-	(newValue) => newValue && mapHandler.findAndSaveFeature(newValue)
+	(newValue) => {
+		mapHandler.findAndSaveFeature(newValue);
+	}
 );
 
 watch(
 	() => props.disabled,
 	(newValue) => mapHandler.setupMapInteractions(newValue)
+);
+
+watch(isFullScreen, async (newValue) => {
+	if (!newValue) {
+		await nextTick();
+		isAdvancedPanelOpen.value = false;
+		mapHandler.fitToAllFeatures();
+		mapHandler.stopWatchingCurrentLocation();
+	}
+});
+
+const onFeaturePlacement = () => emitSavedFeature();
+
+watch(
+	() => mapHandler.errorMessage.value,
+	() => (showErrorFullScreen.value = !!mapHandler.errorMessage.value)
 );
 
 const handleEscapeKey = (event: KeyboardEvent) => {
@@ -72,7 +158,9 @@ const handleEscapeKey = (event: KeyboardEvent) => {
 };
 
 const emitSavedFeature = () => {
-	emit('save', mapHandler.getSavedFeatureValue());
+	const value = mapHandler.getSavedFeatureValue() ?? '';
+	pointPlaced.value = !!value.length;
+	emit('save', value);
 };
 
 const saveSelection = () => {
@@ -80,70 +168,128 @@ const saveSelection = () => {
 	emitSavedFeature();
 };
 
-const saveCurrentLocation = () => {
-	mapHandler.saveCurrentLocation();
-	emitSavedFeature();
-};
-
 const discardSavedFeature = () => {
 	mapHandler.discardSavedFeature();
 	emitSavedFeature();
+};
+
+const triggerDelete = () => {
+	if (mapHandler.confirmDeleteFeature()) {
+		confirmDeleteAction.value = true;
+		return;
+	}
+	mapHandler.deleteVertex();
+	emitSavedFeature();
+};
+
+const deleteFeature = () => {
+	mapHandler.deleteFeature();
+	confirmDeleteAction.value = false;
+	emitSavedFeature();
+};
+
+const undoLastChange = () => {
+	mapHandler.undoLastChange();
+	emitSavedFeature();
+};
+
+const updateFeatureCoords = (newCoords: Coordinate[] | Coordinate[][]) => {
+	mapHandler.updateFeatureCoordinates(newCoords);
+	emitSavedFeature();
+};
+
+const saveAdvancedPanelCoords = (newCoords: Coordinate) => {
+	mapHandler.updateVertexCoords(newCoords);
+	emitSavedFeature();
+};
+
+const enterFullScreen = () => {
+	isFullScreen.value = true;
+	if (mapHandler.shouldShowMapOverlay()) {
+		mapHandler.watchCurrentLocation();
+	}
+};
+
+const toggleFullScreen = () => {
+	isFullScreen.value = !isFullScreen.value;
 };
 </script>
 
 <template>
 	<div class="map-block-component">
 		<div :class="{ 'map-container': true, 'map-full-screen': isFullScreen }">
-			<div class="control-bar">
-				<!-- TODO: translations -->
-				<button
-					:class="{ 'control-active': isFullScreen }"
-					title="Full Screen"
-					@click="isFullScreen = !isFullScreen"
-				>
-					<IconSVG name="mdiArrowExpandAll" size="sm" />
-				</button>
-				<!-- TODO: translations -->
-				<button
-					title="Zoom to fit all options"
-					:disabled="!mapHandler.canFitToAllFeatures()"
-					@click="mapHandler.fitToAllFeatures"
-				>
-					<IconSVG name="mdiFullscreen" />
-				</button>
-				<!-- TODO: translations -->
-				<button title="Zoom to current location" @click="mapHandler.watchCurrentLocation">
-					<IconSVG name="mdiCrosshairsGps" size="sm" />
-				</button>
-			</div>
-
 			<div ref="mapElement" class="map-block">
-				<div v-if="mapHandler.shouldShowMapOverlay()" class="map-overlay">
+				<div
+					v-if="!isFullScreen"
+					class="map-overlay full-screen-overlay"
+					@click="enterFullScreen"
+				/>
+				<div v-if="mapHandler.shouldShowMapOverlay()" class="map-overlay get-location-overlay">
+					<Button
+						severity="secondary"
+						outlined
+						class="close-full-screen"
+						@click="isFullScreen = false"
+					>
+						<IconSVG name="mdiClose" size="sm" />
+					</Button>
 					<Button outlined severity="contrast" @click="mapHandler.watchCurrentLocation">
 						<IconSVG name="mdiCrosshairsGps" />
-						<!-- TODO: translations -->
-						<span>Get location</span>
+						<span>{{ t('map_block.get_location.label') }}</span>
 					</Button>
 				</div>
 
-				<Message v-if="!disabled && mapHandler.canLongPressAndDrag()" severity="contrast" closable size="small" class="map-message">
-					<!-- TODO: translations -->
-					<span v-if="savedFeatureValue">Long press and drag move point</span>
-					<span v-else>Long press to place a point</span>
+				<MapControls
+					:is-full-screen="isFullScreen"
+					:disable-fit-all-features="mapHandler.isMapEmpty()"
+					:disable-undo="!mapHandler.canUndoChange()"
+					:disable-delete="!mapHandler.isFeatureSelected()"
+					:show-secondary-controls="showSecondaryControls"
+					@toggle-full-screen="toggleFullScreen"
+					@fit-all-features="mapHandler.fitToAllFeatures"
+					@watch-current-location="mapHandler.watchCurrentLocation"
+					@trigger-delete="triggerDelete"
+					@undo-last-change="undoLastChange"
+				/>
+
+				<Message
+					v-if="instructionMessage"
+					severity="contrast"
+					closable
+					size="small"
+					:class="{ 'map-message': true, 'above-secondary-controls': isFullScreen && showSecondaryControls }"
+				>
+					<span v-if="pointPlaced">{{ instructionMessage.placed }}</span>
+					<span v-else>{{ instructionMessage.default }}</span>
 				</Message>
 			</div>
 
-			<MapStatusBar
-				:is-feature-saved="mapHandler.isFeatureSaved()"
-				:is-capturing="mapHandler.currentState.value === STATES.CAPTURING"
-				class="map-status-bar-component"
-				:can-remove="!disabled && mapHandler.canRemoveCurrentLocation()"
-				:can-save="!disabled && mapHandler.canSaveCurrentLocation()"
-				:can-view-details="mapHandler.canViewProperties()"
-				@discard="discardSavedFeature"
-				@save="saveCurrentLocation"
-				@view-details="mapHandler.selectSavedFeature"
-			/>
+			<div class="map-bottom-section" :class="{ 'is-advanced-panel-active': isAdvancedPanelActive } ">
+				<MapStatusBar
+					:can-open-advanced-panel="!disabled && mapHandler.canOpenAdvancedPanel()"
+					:can-remove="!disabled && mapHandler.canRemoveCurrentLocation()"
+					:can-view-details="mapHandler.canViewProperties()"
+					:single-feature-type="singleFeatureType"
+					:is-capturing="mapHandler.currentState.value === STATES.CAPTURING"
+					:is-full-screen="isFullScreen"
+					:saved-feature-value="savedFeatureValue"
+					:selected-vertex="selectedVertex"
+					class="map-status-bar-component"
+					@discard="discardSavedFeature"
+					@view-details="mapHandler.selectSavedFeature"
+					@toggle-advanced-panel="isAdvancedPanelOpen = !isAdvancedPanelOpen"
+				/>
+
+				<MapAdvancedPanel
+					v-if="!disabled && mapHandler.canOpenAdvancedPanel()"
+					:is-open="isAdvancedPanelOpen"
+					:coordinates="advancedPanelCoords"
+					@closing-panel="isAdvancedPanelClosing = $event"
+					@open-paste-dialog="isUpdateCoordsDialogOpen = true"
+					@save="saveAdvancedPanelCoords"
+				/>
+			</div>
+			<div class="map-bottom-section-placeholder" :class="{ 'is-advanced-panel-active': isAdvancedPanelActive }" />
 
 			<MapProperties
 				v-if="mapHandler.canViewProperties()"
@@ -159,22 +305,44 @@ const discardSavedFeature = () => {
 		</div>
 
 		<div
-			v-if="mapHandler.errorMessage.value"
-			:class="{ 'map-block-error': true, 'stack-errors': showErrorStyle }"
+			v-if="mapHandler.errorMessage.value && (!isFullScreen || showErrorFullScreen)"
+			class="map-block-error"
+			:class="{ 'stack-errors': showErrorStyle && !isFullScreen, 'top-position': isFullScreen }"
 		>
-			<strong>{{ mapHandler.errorMessage.value.title }}</strong>
-			&nbsp;
-			<span>{{ mapHandler.errorMessage.value.message }}</span>
+			<div class="error-message">
+				<strong>{{ mapHandler.errorMessage.value.title }}</strong>
+				&nbsp;
+				<span>{{ mapHandler.errorMessage.value.message }}</span>
+			</div>
+			<IconSVG
+				v-if="isFullScreen"
+				class="clear-error"
+				name="mdiClose"
+				variant="error"
+				size="sm"
+				@click="showErrorFullScreen = false"
+			/>
 		</div>
 	</div>
+
+	<MapConfirmDialog
+		v-model:visible="confirmDeleteAction"
+		:single-feature-type="singleFeatureType"
+		@delete-feature="deleteFeature"
+	/>
+
+	<MapUpdateCoordsDialog
+		v-model:visible="isUpdateCoordsDialogOpen"
+		:single-feature-type="singleFeatureType"
+		@save="updateFeatureCoords"
+	/>
 </template>
 
 <style scoped lang="scss">
 @use 'primeflex/core/_variables.scss' as pf;
-
-.map-block-component {
-	--odk-map-spacing: 8px;
-}
+@use '../../../assets/styles/map-block' as mb;
+@use '../../../assets/styles/buttons' as btn;
+@use '../../../assets/styles/style' as odk;
 
 .map-block-component {
 	position: relative;
@@ -189,8 +357,13 @@ const discardSavedFeature = () => {
 	border: 1px solid var(--odk-border-color);
 	border-radius: var(--odk-radius);
 	overflow: hidden;
+	// iPhone - fixes select issues on map
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
 
 	.map-block {
+		container: map-block / size;
 		position: relative;
 		background: var(--odk-base-background-color);
 		width: 100%;
@@ -204,8 +377,18 @@ const discardSavedFeature = () => {
 		align-items: center;
 		width: 100%;
 		height: 100%;
+	}
+
+	.map-overlay.get-location-overlay {
 		background-color: rgba(from var(--odk-muted-background-color) r g b / 0.9);
-		z-index: var(--odk-z-index-overlay);
+		z-index: var(--odk-z-index-form-floating);
+
+		.close-full-screen {
+			@include btn.clear-button;
+			display: none;
+			top: var(--odk-map-controls-spacing);
+			left: var(--odk-map-controls-spacing);
+		}
 
 		.p-button.p-button-contrast.p-button-outlined {
 			background: var(--odk-base-background-color);
@@ -215,82 +398,56 @@ const discardSavedFeature = () => {
 			}
 		}
 	}
+
+	.map-overlay.full-screen-overlay {
+		display: none;
+		z-index: var(--odk-z-index-top-overlay);
+	}
 }
 
 .map-container.map-full-screen {
+	position: fixed;
+	inset: 0;
 	display: flex;
 	flex-direction: column;
-	justify-content: flex-start;
-	position: fixed;
-	top: 0;
-	left: 0;
-	height: 100vh;
 	width: 100vw;
+	height: 100dvh;
 	z-index: var(--odk-z-index-topmost);
+	background: var(--odk-base-background-color);
+	border-radius: 0;
+
+	// Prevent background scroll-chaining
+	overscroll-behavior: none;
+	// Hand touch gestures (zoom/pan) exclusively to the map engine
+	touch-action: none;
 
 	.map-block {
-		flex-grow: 2;
-	}
-}
-
-@mixin map-floating-control-bar {
-	position: absolute;
-	right: var(--odk-map-spacing);
-	display: flex;
-	flex-direction: column;
-	flex-wrap: nowrap;
-	align-items: center;
-	box-shadow: none;
-	background: none;
-	overflow: hidden;
-	gap: var(--odk-map-spacing);
-	z-index: var(--odk-z-index-form-floating);
-}
-
-@mixin map-control-button {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 42px;
-	width: 42px;
-	border: 1px solid var(--odk-border-color);
-	border-radius: var(--odk-radius);
-	background: var(--odk-base-background-color);
-	font-size: 24px;
-	font-weight: 300;
-	color: var(--odk-text-color);
-	cursor: pointer;
-	-webkit-tap-highlight-color: transparent;
-
-	&:hover {
-		background: var(--odk-muted-background-color);
-		color: var(--odk-text-color);
+		flex: 1 1 0;
+		width: 100%;
+		min-height: 0;
+		height: auto;
 	}
 
-	&:disabled {
-		background: var(--odk-muted-background-color);
-		cursor: not-allowed;
+	:deep(.map-status-bar),
+	:deep(.advanced-panel) {
+		flex-shrink: 0;
 	}
-}
 
-.control-bar {
-	@include map-floating-control-bar;
-	top: var(--odk-map-spacing);
-
-	button {
-		@include map-control-button;
+	.map-overlay.get-location-overlay .close-full-screen {
+		display: block;
 	}
 }
 
 .map-block-component :deep(.ol-zoom) {
-	@include map-floating-control-bar;
+	@include mb.map-control-bar-vertical;
 	bottom: 35px;
+	height: fit-content;
 
 	button,
 	button:hover,
 	button:focus,
 	button:active {
-		@include map-control-button;
+		@include mb.map-control-button;
 	}
 }
 
@@ -306,7 +463,7 @@ const discardSavedFeature = () => {
 
 	ul {
 		margin: 0;
-		padding: 5px;
+		padding: var(--odk-spacing-s);
 	}
 
 	li {
@@ -315,7 +472,7 @@ const discardSavedFeature = () => {
 
 	li,
 	a {
-		font-size: 10px;
+		font-size: var(--odk-spacing-m);
 		line-height: 14px;
 		color: var(--odk-muted-text-color);
 	}
@@ -326,22 +483,38 @@ const discardSavedFeature = () => {
 	color: var(--odk-error-text-color);
 	background-color: var(--odk-error-background-color);
 	border-radius: var(--odk-radius);
-	margin-top: 20px;
-	padding: 20px;
+	margin-top: var(--odk-spacing-xl);
+	padding: var(--odk-spacing-xl);
 
 	&.stack-errors {
-		padding: 20px 0 5px 0;
+		padding: var(--odk-spacing-xl) 0 var(--odk-spacing-s) 0;
 		margin-top: 0;
 		border-radius: 0;
+	}
+
+	&.top-position {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		position: fixed;
+		top: var(--odk-map-controls-spacing);
+		left: var(--odk-map-controls-spacing);
+		right: var(--odk-map-controls-spacing);
+		z-index: var(--odk-z-index-topmost);
+		margin-top: 0;
+	}
+
+	.clear-error {
+		cursor: pointer;
 	}
 }
 
 .map-message {
 	width: max-content;
-	max-width: 90%;
+	max-width: calc(100% - (var(--odk-map-controls-spacing) * 2));
 	position: absolute;
 	z-index: var(--odk-z-index-form-floating);
-	bottom: 0;
+	bottom: -11px;
 	left: 50%;
 	transform: translate(-50%, -50%);
 }
@@ -351,25 +524,46 @@ const discardSavedFeature = () => {
 		height: fit-content;
 	}
 
-	.map-block-component .map-block {
-		--map-status-bar-min-height: 60px;
-		--map-label-min-height: 60px;
-		height: calc(100vh - var(--map-status-bar-min-height) - var(--map-label-min-height));
-
+	.map-container {
 		:deep(.ol-zoom) {
-			top: 195px;
-			bottom: unset;
+			display: none;
+		}
+
+		&.map-full-screen :deep(.ol-zoom) {
+			display: flex;
+			height: fit-content;
+		}
+
+		.map-overlay.full-screen-overlay {
+			display: flex;
 		}
 	}
 
-	.control-bar {
-		top: var(--odk-map-spacing);
-		right: var(--odk-map-spacing);
+	.map-message.above-secondary-controls {
+		bottom: 61px;
 	}
+}
 
-	.map-block-component :deep(.ol-zoom) {
-		right: var(--odk-map-spacing);
-		bottom: var(--odk-map-spacing);
+@include odk.sm-constrained {
+	// Displays on top of map elements when it's mobile and fullscreen
+	.map-container.map-full-screen {
+		.map-bottom-section {
+			position: relative;
+			width: 100vw;
+			background: var(--odk-base-background-color);
+
+			&.is-advanced-panel-active {
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				z-index: var(--odk-z-index-form-floating);
+			}
+		}
+
+		.map-bottom-section-placeholder.is-advanced-panel-active {
+			width: 100vw;
+			height: var(--odk-map-bottom-placeholder-height);
+		}
 	}
 }
 </style>

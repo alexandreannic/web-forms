@@ -9,7 +9,7 @@ import {
 	t,
 	title,
 	upload,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { binaryAnswer } from '../../src/answer/ExpectedBinaryAnswer.ts';
 import { Scenario } from '../../src/jr/Scenario.ts';
@@ -27,7 +27,7 @@ describe.each<InstanceRoundTripCase>([
 	const scenarioFromCurrentInstanceState = async (scenario: Scenario): Promise<Scenario> => {
 		switch (initializationMode) {
 			case 'edit':
-				return scenario.proposed_editCurrentInstanceState();
+				return scenario.editCurrentInstance();
 
 			case 'restore':
 				return scenario.proposed_serializeAndRestoreInstanceState();
@@ -73,11 +73,12 @@ describe.each<InstanceRoundTripCase>([
 		});
 
 		scenario.answer('/data/file-upload', uploadValue);
-
 		const result = await scenarioFromCurrentInstanceState(scenario);
+		const expected = binaryAnswer(uploadValue);
 
-		await expect(result.answerOf('/data/file-upload')).toEqualUploadedAnswer(
-			binaryAnswer(uploadValue)
-		);
+		// we need to poll because serializing the file is async
+		await expect
+			.poll(() => result.answerOf('/data/file-upload'), { timeout: 1000 })
+			.toEqualUploadedAnswer(expected);
 	});
 });

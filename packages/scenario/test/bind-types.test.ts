@@ -9,7 +9,7 @@ import {
 	repeat,
 	t,
 	title,
-} from '@getodk/common/test/fixtures/xform-dsl/index.ts';
+} from '@getodk/common/test-utils/xform-dsl/index.ts';
 import type { ValueType } from '@getodk/xforms-engine';
 import { Temporal } from 'temporal-polyfill';
 import { assert, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
@@ -38,7 +38,7 @@ describe('Data (<bind type>) type support', () => {
 							t('implicit-string-value', 'implicit string'),
 							t('int-value', '123'),
 							t('decimal-value', '45.67'),
-							t('geopoint-value', '38.25146813817506 21.758421137528785 0 0'),
+							t('geopoint-value', '38.25146813817506 21.758421137528785 0.0 0.0'),
 							t('date-value', '1999-11-23T23:30:05'),
 						)
 					),
@@ -262,7 +262,7 @@ describe('Data (<bind type>) type support', () => {
 							t('implicit-string-value', 'implicit string'),
 							t('int-value', '123'),
 							t('decimal-value', '45.67'),
-							t('geopoint-value', '38.25146813817506 21.758421137528785 1000 25'),
+							t('geopoint-value', '38.25146813817506 21.758421137528785 1000.0 25.0'),
 							t('date-value', '2025-12-20'),
 						)
 					),
@@ -411,69 +411,66 @@ describe('Data (<bind type>) type support', () => {
 
 				type SetIntInputValueType = keyof SetIntInputValueByType;
 
-				interface BaseSetIntInputValueCase<T extends SetIntInputValueType> {
-					readonly inputType: T;
-					readonly inputValue: SetIntInputValueByType[T];
-					readonly expectedValue: bigint | null;
-				}
+				describe('sets value', () => {
+					interface BaseSetIntInputValueCase<T extends SetIntInputValueType> {
+						readonly inputType: T;
+						readonly inputValue: SetIntInputValueByType[T];
+						readonly expectedValue: bigint | null;
+					}
 
-				type SetIntInputValueCase = {
-					[T in SetIntInputValueType]: BaseSetIntInputValueCase<T>;
-				}[SetIntInputValueType];
+					type SetIntInputValueCase = {
+						[T in SetIntInputValueType]: BaseSetIntInputValueCase<T>;
+					}[SetIntInputValueType];
 
-				describe.each<SetIntInputValueCase>([
-					{ inputType: 'bigint', inputValue: 89n, expectedValue: 89n },
-					{ inputType: 'number', inputValue: 10, expectedValue: 10n },
-					{ inputType: 'string', inputValue: '23', expectedValue: 23n },
-					{ inputType: 'null', inputValue: null, expectedValue: null },
-					{ inputType: 'string', inputValue: '10.1', expectedValue: 10n },
-					{ inputType: 'number', inputValue: 10.1, expectedValue: 10n },
-				])('setValue($inputType)', ({ inputValue, expectedValue }) => {
-					it(`sets ${inputValue}, resulting in value ${expectedValue}`, () => {
-						scenario.answer('/root/int-value', inputValue);
-						answer = getTypedInputNodeAnswer('/root/int-value', 'int');
-
-						expectTypeOf(answer.value).toEqualTypeOf<bigint | null>();
-
-						if (expectedValue == null) {
-							expect(answer.value).toBeNull();
-							expect(answer.stringValue).toBe('');
-						} else {
-							expect(answer.value).toBeTypeOf('bigint');
-							expect(answer.value).toBe(expectedValue);
-							expect(answer.stringValue).toBe(`${expectedValue}`);
-						}
-					});
-				});
-
-				interface BaseSetIntInputErrorCase<T extends SetIntInputValueType> {
-					readonly inputType: T;
-					readonly inputValue: SetIntInputValueByType[T];
-				}
-
-				type SetIntInputErrorCase = {
-					[T in SetIntInputValueType]: BaseSetIntInputErrorCase<T>;
-				}[SetIntInputValueType];
-
-				describe.each<SetIntInputErrorCase>([
-					{ inputType: 'bigint', inputValue: -2_147_483_649n },
-					{ inputType: 'bigint', inputValue: 2_147_483_648n },
-					{ inputType: 'number', inputValue: -2_147_483_649 },
-					{ inputType: 'number', inputValue: 2_147_483_648 },
-					{ inputType: 'string', inputValue: '-2147483649' },
-					{ inputType: 'string', inputValue: '2147483648' },
-				])('integer value out of specified bounds ($inputType)', ({ inputValue }) => {
-					it(`fails to set ${inputValue}`, () => {
-						let caught: unknown;
-
-						try {
+					it.each<SetIntInputValueCase>([
+						{ inputType: 'bigint', inputValue: 89n, expectedValue: 89n },
+						{ inputType: 'number', inputValue: 10, expectedValue: 10n },
+						{ inputType: 'string', inputValue: '23', expectedValue: 23n },
+						{ inputType: 'null', inputValue: null, expectedValue: null },
+						{ inputType: 'string', inputValue: '10.1', expectedValue: 10n },
+						{ inputType: 'number', inputValue: 10.1, expectedValue: 10n },
+					])(
+						'$inputValue ($inputType), resulting in value $expectedValue',
+						({ inputValue, expectedValue }) => {
 							scenario.answer('/root/int-value', inputValue);
 							answer = getTypedInputNodeAnswer('/root/int-value', 'int');
-						} catch (error) {
-							caught = error;
-						}
 
-						expect(caught, `Value was set to ${answer.value}`).toBeInstanceOf(Error);
+							expectTypeOf(answer.value).toEqualTypeOf<bigint | null>();
+
+							if (expectedValue == null) {
+								expect(answer.value).toBeNull();
+								expect(answer.stringValue).toBe('');
+							} else {
+								expect(answer.value).toBeTypeOf('bigint');
+								expect(answer.value).toBe(expectedValue);
+								expect(answer.stringValue).toBe(`${expectedValue}`);
+							}
+						}
+					);
+				});
+
+				describe('fails to set when out of bounds', () => {
+					interface BaseSetIntInputErrorCase<T extends SetIntInputValueType> {
+						readonly inputType: T;
+						readonly inputValue: SetIntInputValueByType[T];
+					}
+
+					type SetIntInputErrorCase = {
+						[T in SetIntInputValueType]: BaseSetIntInputErrorCase<T>;
+					}[SetIntInputValueType];
+
+					it.each<SetIntInputErrorCase>([
+						{ inputType: 'bigint', inputValue: -2_147_483_649n },
+						{ inputType: 'bigint', inputValue: 2_147_483_648n },
+						{ inputType: 'number', inputValue: -2_147_483_649 },
+						{ inputType: 'number', inputValue: 2_147_483_648 },
+						{ inputType: 'string', inputValue: '-2147483649' },
+						{ inputType: 'string', inputValue: '2147483648' },
+					])('$inputValue ($inputType)', ({ inputValue }) => {
+						scenario.answer('/root/int-value', inputValue);
+						answer = getTypedInputNodeAnswer('/root/int-value', 'int');
+						expect(answer.value).toBeNull();
+						expect(answer.stringValue).toBe('');
 					});
 				});
 			});
@@ -518,6 +515,7 @@ describe('Data (<bind type>) type support', () => {
 					readonly inputType: T;
 					readonly inputValue: SetDecimalInputValueByType[T];
 					readonly expectedValue: number | null;
+					readonly expectedStringValue: string;
 				}
 
 				type SetDecimalInputValueCase = {
@@ -525,11 +523,11 @@ describe('Data (<bind type>) type support', () => {
 				}[SetDecimalInputValueType];
 
 				it.each<SetDecimalInputValueCase>([
-					{ inputType: 'bigint', inputValue: 89n, expectedValue: 89 },
-					{ inputType: 'number', inputValue: 10, expectedValue: 10 },
-					{ inputType: 'string', inputValue: '23', expectedValue: 23 },
-					{ inputType: 'null', inputValue: null, expectedValue: null },
-				])('sets value ($inputType)', ({ inputValue, expectedValue }) => {
+					{ inputType: 'bigint', inputValue: 89n, expectedValue: 89, expectedStringValue: '89.0' },
+					{ inputType: 'number', inputValue: 10, expectedValue: 10, expectedStringValue: '10.0' },
+					{ inputType: 'string', inputValue: '23', expectedValue: 23, expectedStringValue: '23.0' },
+					{ inputType: 'null', inputValue: null, expectedValue: null, expectedStringValue: '' },
+				])('sets value ($inputType)', ({ inputValue, expectedValue, expectedStringValue }) => {
 					scenario.answer('/root/decimal-value', inputValue);
 					answer = getTypedInputNodeAnswer('/root/decimal-value', 'decimal');
 
@@ -541,7 +539,7 @@ describe('Data (<bind type>) type support', () => {
 					} else {
 						expect(answer.value).toBeTypeOf('number');
 						expect(answer.value).toBe(expectedValue);
-						expect(answer.stringValue).toBe(`${expectedValue}`);
+						expect(answer.stringValue).toBe(`${expectedStringValue}`);
 					}
 				});
 			});
@@ -571,7 +569,7 @@ describe('Data (<bind type>) type support', () => {
 					altitude: 1000,
 					accuracy: 25,
 				});
-				expect(answer.stringValue).toEqual('38.25146813817506 21.758421137528785 1000 25');
+				expect(answer.stringValue).toEqual('38.25146813817506 21.758421137528785 1000.0 25.0');
 			});
 
 			it('has an null as blank value', () => {
@@ -590,7 +588,7 @@ describe('Data (<bind type>) type support', () => {
 					altitude: 0,
 					accuracy: 5,
 				});
-				expect(answer.stringValue).toEqual('-5.299 46.663 0 5');
+				expect(answer.stringValue).toEqual('-5.299 46.663 0.0 5.0');
 			});
 
 			it.each([
@@ -617,17 +615,17 @@ describe('Data (<bind type>) type support', () => {
 				{
 					expression: { latitude: 19.899, longitude: 100.55559, accuracy: 15 },
 					expectedAsObject: { latitude: 19.899, longitude: 100.55559, altitude: 0, accuracy: 15 },
-					expectedAsText: '19.899 100.55559 0 15',
+					expectedAsText: '19.899 100.55559 0.0 15.0',
 				},
 				{
 					expression: { latitude: 45.111, longitude: 127.23, altitude: 1350 },
 					expectedAsObject: { latitude: 45.111, longitude: 127.23, altitude: 1350, accuracy: null },
-					expectedAsText: '45.111 127.23 1350',
+					expectedAsText: '45.111 127.23 1350.0',
 				},
 				{
 					expression: { latitude: 14.66599, longitude: 179.9009, altitude: 200, accuracy: 5 },
 					expectedAsObject: { latitude: 14.66599, longitude: 179.9009, altitude: 200, accuracy: 5 },
-					expectedAsText: '14.66599 179.9009 200 5',
+					expectedAsText: '14.66599 179.9009 200.0 5.0',
 				},
 				{
 					expression: { latitude: 0, longitude: 0, altitude: 0, accuracy: 0 },

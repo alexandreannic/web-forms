@@ -1,70 +1,104 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import {
 	mdiAlert,
 	mdiAlertCircleOutline,
-	mdiArrowExpandAll,
+	mdiArrowCollapse,
+	mdiArrowExpand,
+	mdiArrowULeftTop,
 	mdiCamera,
 	mdiCheck,
 	mdiCheckboxMarkedCircleOutline,
 	mdiCheckCircle,
 	mdiChevronDown,
 	mdiChevronUp,
+	mdiClockTimeThreeOutline,
 	mdiClose,
+	mdiCogOutline,
 	mdiContentSave,
 	mdiCrosshairsGps,
 	mdiDotsVertical,
 	mdiDownload,
 	mdiDragVertical,
 	mdiEyeOutline,
+	mdiFileMusic,
 	mdiFileOutline,
+	mdiFileVideo,
 	mdiFullscreen,
 	mdiImage,
+	mdiInformationSlabCircleOutline,
 	mdiMapMarkerOutline,
 	mdiMenu,
+	mdiPaperclip,
 	mdiPencil,
 	mdiPlus,
 	mdiPrinter,
 	mdiRefresh,
+	mdiStopCircleOutline,
+	mdiTranslate,
+	mdiTrashCanOutline,
 	mdiUnfoldMoreHorizontal,
 	mdiUpload,
-	mdiWeb,
+	mdiVectorPolygon,
+	mdiVectorPolyline,
+	mdiVolumeHigh,
 } from '@mdi/js';
+import { computed } from 'vue';
 
 // Find icons here: https://pictogrammers.com/library/mdi/
 const iconMap: Record<string, string> = {
 	mdiAlert,
 	mdiAlertCircleOutline,
-	mdiArrowExpandAll,
+	mdiArrowCollapse,
+	mdiArrowExpand,
+	mdiArrowULeftTop,
 	mdiCamera,
 	mdiCheck,
 	mdiCheckboxMarkedCircleOutline,
 	mdiCheckCircle,
 	mdiChevronDown,
 	mdiChevronUp,
+	mdiClockTimeThreeOutline,
 	mdiClose,
+	mdiCogOutline,
 	mdiContentSave,
 	mdiCrosshairsGps,
 	mdiDotsVertical,
 	mdiDownload,
 	mdiDragVertical,
 	mdiEyeOutline,
+	mdiFileMusic,
 	mdiFileOutline,
+	mdiFileVideo,
 	mdiFullscreen,
 	mdiImage,
+	mdiInformationSlabCircleOutline,
 	mdiMapMarkerOutline,
 	mdiMenu,
+	mdiPaperclip,
 	mdiPencil,
 	mdiPlus,
 	mdiPrinter,
 	mdiRefresh,
+	mdiStopCircleOutline,
+	mdiTranslate,
+	mdiTrashCanOutline,
 	mdiUnfoldMoreHorizontal,
 	mdiUpload,
-	mdiWeb,
+	mdiVectorPolygon,
+	mdiVectorPolyline,
+	mdiVolumeHigh,
 };
 
 type IconName = keyof typeof iconMap;
-type IconVariant = 'base' | 'error' | 'inverted' | 'muted' | 'primary' | 'success' | 'warning';
+type IconVariant =
+	| 'base'
+	| 'error'
+	| 'inverted'
+	| 'light-muted'
+	| 'muted'
+	| 'primary'
+	| 'success'
+	| 'warning';
 type IconSize = 'md' | 'sm';
 
 /**
@@ -101,6 +135,7 @@ const iconSize = computed(() => props.size ?? 'md');
 	display: inline-block;
 	vertical-align: middle;
 	overflow: visible;
+	flex-shrink: 0;
 }
 
 .odk-icon.base path {
@@ -113,6 +148,10 @@ const iconSize = computed(() => props.size ?? 'md');
 
 .odk-icon.inverted path {
 	fill: var(--odk-inverted-text-color);
+}
+
+.odk-icon.light-muted path {
+	fill: var(--odk-light-muted-text-color);
 }
 
 .odk-icon.muted path {

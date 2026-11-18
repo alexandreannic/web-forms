@@ -1,5 +1,74 @@
 # @getodk/common
 
+## 0.15.0
+
+### Minor Changes
+
+- 86a54ab: Editing submissions no longer blocks until attachments have been downloaded
+- 024287c: Moved monorepo tree-sitter-xpath into separate repo
+
+### Patch Changes
+
+- 7ac5a19: Add support to datetime question type.
+- a64d092: Add support for "month-year" and "year" date question type appearances.
+
+## 0.14.0
+
+### Minor Changes
+
+- 2eccd28: Added support for the file, audio, and video upload types, and implemented drag and drop for uploads
+
+## 0.13.0
+
+### Minor Changes
+
+- b454f1f: Added support for max-pixels parameter to scale down image files before upload
+
+### Patch Changes
+
+- e9f4e28: Fixed markdown to support computed link urls
+- 749e9f1: Relocate shared test utilities to @getodk/common/test-utils
+- 56a1652: Move assertion utilities to @getodk/scenario
+- b83577f: Fix markdown to preserve line breaks
+
+## 0.12.2
+
+### Patch Changes
+
+- 53e60da: Handle last-saved virtual secondary instance gracefully pending full implementation later
+
+## 0.12.1
+
+### Patch Changes
+
+- 90e5a03: Adds time question type
+
+## 0.12.0
+
+### Minor Changes
+
+- dc089de: Adds support for labels with audio and video
+
+### Patch Changes
+
+- 4346971: Adds support for Geoshape and Geotrace.
+
+## 0.11.1
+
+### Patch Changes
+
+- Fixes xform for scenario tests
+
+## 0.11.0
+
+### Minor Changes
+
+- bac8412: Add support for all jr:preload options
+
+### Patch Changes
+
+- 0be7d7c: Upgrade dependencies
+
 ## 0.10.0
 
 ### Minor Changes

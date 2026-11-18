@@ -1,5 +1,84 @@
 # @getodk/xpath
 
+## 0.11.0
+
+### Minor Changes
+
+- 024287c: Moved monorepo tree-sitter-xpath into separate repo
+
+### Patch Changes
+
+- 0485972: Fix the number() on the dateTime string to return day count.
+- 7ac5a19: Add support to datetime question type.
+- 7a91129: Stringify NaN as an empty string according to the XForms specs.
+- Updated dependencies [86a54ab]
+- Updated dependencies [7ac5a19]
+- Updated dependencies [a64d092]
+- Updated dependencies [024287c]
+  - @getodk/common@0.15.0
+
+## 0.10.4
+
+### Patch Changes
+
+- 60073ee: Fixed decimal-date-time function to accept a node as a parameter
+- Updated dependencies [2eccd28]
+  - @getodk/common@0.14.0
+
+## 0.10.3
+
+### Patch Changes
+
+- Updated dependencies [b454f1f]
+- Updated dependencies [e9f4e28]
+- Updated dependencies [749e9f1]
+- Updated dependencies [56a1652]
+- Updated dependencies [b83577f]
+  - @getodk/common@0.13.0
+
+## 0.10.2
+
+### Patch Changes
+
+- Updated dependencies [53e60da]
+  - @getodk/common@0.12.2
+
+## 0.10.1
+
+### Patch Changes
+
+- Updated dependencies [90e5a03]
+  - @getodk/common@0.12.1
+
+## 0.10.0
+
+### Minor Changes
+
+- 8f49cfa: Adds geofence xpath function
+
+### Patch Changes
+
+- 2276870: Removes temporal-polyfill from xpath bundle
+- a3839c1: Fixes a range of memory leaks when resetting form instances
+- Updated dependencies [4346971]
+- Updated dependencies [dc089de]
+  - @getodk/common@0.12.0
+
+## 0.9.2
+
+### Patch Changes
+
+- f5b706e: Fixes the xpath traversal code to support dynamic attributes
+- Updated dependencies
+  - @getodk/common@0.11.1
+
+## 0.9.1
+
+### Patch Changes
+
+- 0be7d7c: Upgrade dependencies
+  - @getodk/common@0.11.0
+
 ## 0.9.0
 
 ### Minor Changes

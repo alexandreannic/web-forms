@@ -5,31 +5,18 @@ import {
 	type SyntheticDefaultLanguage,
 } from '@getodk/xforms-engine';
 import Card from 'primevue/card';
-import { ref } from 'vue';
 import FormLanguageMenu from './FormLanguageMenu.vue';
 
 const props = defineProps<{ form: RootNode }>();
-const languageDialogState = ref(false);
+const emit = defineEmits<{ changeLanguage: [FormLanguage] }>();
 
 const isFormLanguage = (lang: FormLanguage | SyntheticDefaultLanguage): lang is FormLanguage => {
 	return !lang.isSyntheticDefault;
 };
-
-type DropdownItem = Array<{ label: string; icon: string; command: () => void }>;
-const items = ref<DropdownItem>([]);
-
 const languages = props.form.languages.filter(isFormLanguage);
-if (languages.length > 0) {
-	items.value.unshift({
-		// TODO: translations
-		label: 'Change language',
-		icon: 'mdiWeb',
-		command: () => (languageDialogState.value = true),
-	});
-}
 
 const handleLanguageChange = (event: FormLanguage) => {
-	props.form.setLanguage(event);
+	emit('changeLanguage', event);
 };
 </script>
 
@@ -47,11 +34,10 @@ const handleLanguageChange = (event: FormLanguage) => {
 			<template #content>
 				<!-- TODO/q: should the title be on the definition or definition.form be accessible instead of definition.bind.form -->
 				<h1>{{ form.definition.bind.form.title }}</h1>
-			<!-- last saved timestamp -->
+				<!-- last saved timestamp -->
 			</template>
 		</Card>
 	</div>
-
 
 	<!-- for mobile and tablet -->
 	<div class="flex lg:hidden align-items-start justify-content-between smaller-screens">
@@ -95,7 +81,7 @@ const handleLanguageChange = (event: FormLanguage) => {
 	border-radius: var(--odk-radius);
 	box-shadow: none;
 	border-top: none;
-	margin-top: 20px;
+	margin-top: var(--odk-spacing-xl);
 
 	:deep(.p-card-body) {
 		padding-left: 3rem;
@@ -104,7 +90,8 @@ const handleLanguageChange = (event: FormLanguage) => {
 		h1 {
 			font-size: var(--odk-title-font-size);
 			font-weight: 500;
-			margin: 10px 0;
+			margin: var(--odk-spacing-m) 0;
+			word-break: break-all;
 		}
 	}
 }
@@ -118,39 +105,15 @@ const handleLanguageChange = (event: FormLanguage) => {
 		font-size: var(--odk-title-font-size);
 		font-weight: 400;
 		margin: 16px 0;
+		word-break: break-all;
 	}
 
 	.form-options {
-		padding-right: 10px;
-		min-width: 50px;
-		container-type: size;
-		container-name: formOptionsContainer;
-		height: 40px;
-		margin-top: 10px;
-
+		padding-right: var(--odk-spacing-m);
+		margin-top: var(--odk-spacing-m);
 		.language-changer {
-			display: flex;
-			justify-content: end;
-			width: 45px;
-			gap: 0.5rem;
-
-			:deep(.p-select-label) {
-				text-overflow: unset;
-			}
-
-			:deep(.p-select-label) span,
-			:deep(.p-select-dropdown) {
+			:deep(.p-select-label) span {
 				display: none;
-			}
-
-			:deep(.odk-icon) {
-				margin-right: 0;
-			}
-		}
-
-		@container formOptionsContainer (min-width: 260px) {
-			.language-changer {
-				max-width: 220px;
 			}
 		}
 	}

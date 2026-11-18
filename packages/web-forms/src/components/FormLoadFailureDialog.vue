@@ -1,22 +1,17 @@
 <script setup lang="ts">
+import { TRANSLATE } from '@/lib/constants/injection-keys.ts';
+import type { Translate } from '@/lib/locale/useLocale.ts';
 import Dialog from 'primevue/dialog';
 import Message from 'primevue/message';
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
 import type { FormInitializationError } from '@/lib/error/FormInitializationError.ts';
-
-/**
- * @todo translations
- */
-const FORM_LOAD_ERROR_TEXT = {
-	DIALOG_TITLE: 'An error occurred while loading this form',
-	DETAILS_SUMMARY_LABEL: 'Technical error details',
-};
 
 interface FormLoadErrorProps {
 	readonly error: FormInitializationError;
 }
 
 const props = defineProps<FormLoadErrorProps>();
+const t: Translate = inject(TRANSLATE)!;
 
 interface FormLoadErrorDetail {
 	readonly stack: string | null;
@@ -38,33 +33,27 @@ const detail = computed((): FormLoadErrorDetail | null => {
 </script>
 
 <template>
-	<Dialog
-		class="form-load-failure-dialog"
-		:visible="detail != null"
-		:header="FORM_LOAD_ERROR_TEXT.DIALOG_TITLE"
-		:closable="false"
-		:draggable="false"
-		:keep-in-viewport="true"
-	>
+	<div v-if="detail != null" class="form-load-failure-dialog">
+		<div>{{ t('form_load_failure_dialog.header.title') }}</div>
 		<div class="content">
 			<Message severity="error" class="message" :closable="false" :unstyled="true">
 				{{ error.message }}
 			</Message>
 
 			<details v-if="detail != null" class="initialize-form-failure-details">
-				<summary>{{ FORM_LOAD_ERROR_TEXT.DETAILS_SUMMARY_LABEL }}</summary>
+				<summary>{{ t('form_load_failure_dialog.details.label') }}</summary>
 
 				<pre v-if="detail.unknownCauseDetail != null">{{ detail.unknownCauseDetail }}</pre>
 
 				<pre v-if="detail.stack != null">{{ detail.stack }}</pre>
 			</details>
 		</div>
-	</Dialog>
+	</div>
 </template>
 
 <style lang="scss" scoped>
 .form-load-failure-dialog .message {
-	margin: 10px 0 30px 0;
+	margin: var(--odk-spacing-m) 0 var(--odk-spacing-xxl) 0;
 	color: var(--odk-error-text-color);
 	font-size: var(--odk-base-font-size);
 	white-space: pre-wrap;
